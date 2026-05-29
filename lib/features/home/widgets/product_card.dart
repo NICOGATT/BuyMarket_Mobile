@@ -1,9 +1,10 @@
 // import 'package:buymarket_frontend/features/cart/services/cart_services_instances.dart';
 import 'package:flutter/material.dart';
 import '../models/product.dart';
-import '../../products/screens/producto_detail_screen.dart';
+// import '../../products/screens/producto_detail_screen.dart';
 import '../../cart/services/cart_services_instances.dart';
 import '../../favorites/services/favorite_services_instances.dart';
+import '../../../core/routes/app_routes.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -14,11 +15,10 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
+          AppRoutes.productDetail,
+          arguments: product,
         );
       },
       child: Container(

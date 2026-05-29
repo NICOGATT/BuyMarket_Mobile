@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/cart_services_instances.dart';
+import '../../../core/routes/app_routes.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -77,12 +78,9 @@ class _CartScreenState extends State<CartScreen> {
                       width: double.infinity,
                       child : ElevatedButton(
                         onPressed: (){
-                          cartService.clearCart(); 
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Compra finalizada'),
-                            )
+                          Navigator.pushNamed(
+                            context, 
+                            AppRoutes.checkout
                           );
                         }, 
                         child: const Text('Finalizar comprar'),

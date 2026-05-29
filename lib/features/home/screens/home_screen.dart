@@ -4,6 +4,8 @@ import '../widgets/product_card.dart';
 import '../models/product.dart';
 import '../../../shared/widgets/search_input.dart';
 import '../widgets/category_chip.dart';
+import '../../cart/services/cart_services.dart';
+import '../../cart/services/cart_services_instances.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen ({super.key}); 
@@ -30,14 +32,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadProducts() async {
+    try {
+      final result = await productServices.getProducts();
 
-    final result =
-        await productServices.getProducts();
+      await cartService.loadCart(result);
 
-    setState(() {
-      products = result;
-      isLoading = false;
-    });
+      setState(() {
+        products = result;
+        isLoading = false;
+        errorMessage = null;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = e.toString();
+      });
+    }
   }
 
   List<Product> get filteredProducts {
@@ -52,40 +62,52 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('BuyMarket'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: const Color(0xffFAF5FC),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             //Search bar 
-            SearchInput(onChanged: (value) {
-              setState(() {
-                search = value;
-              });
-            }),
-
-            const SizedBox(height: 20), 
-            
-            //TITLE
-            const Text(
-              'Categorias', 
-              style: TextStyle(
-                fontSize: 22, 
-                fontWeight: FontWeight.bold,
+            Container(
+              color: const Color(0xff2D006B),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const CircleAvatar(child: Icon(Icons.person),), 
+                  const SizedBox(width: 12,), 
+                  Expanded(child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        search = value; 
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Buscar producto', 
+                      prefixIcon: const Icon(Icons.search), 
+                      filled: true, 
+                      fillColor: Colors.white, 
+                      contentPadding: EdgeInsets.zero, 
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30), 
+                        borderSide: BorderSide.none
+                      )
+                    ),
+                  )),
+                  const SizedBox(width: 12,), 
+                  const Icon(
+                    Icons.notifications_none,
+                    color: Colors.white,
+                    size: 30, 
+                  ),
+                ],
               ),
-            ), 
+            ),
 
-            const SizedBox(height: 10), 
-            
-            SizedBox(
-              height: 50,
+            Container(
+              color: const Color(0xff9ED8FF),
+              height: 42,
               child: ListView(
                 scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
                   CategoryChip(
                     title: 'Tecnologia', 
@@ -123,21 +145,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       });
                     },
                   ),
-                  
                 ],
               ),
             ),
 
-            const SizedBox(height: 20,), 
-
-            //Products Title
-            const Text(
-              'Productos', 
-              style: TextStyle(
-                fontSize: 22, 
-                fontWeight: FontWeight.bold,
-              ),
-            ), 
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: const[
+                  _PromoBanner(), 
+                  SizedBox(height: 20,),
+                  Text(
+                    'Recomendados', 
+                    style: TextStyle(
+                      fontSize: 26, 
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ), 
+                  SizedBox(height: 16,), 
+                  _ProductGrid();
+                ],
+              ) 
+            )
 
             const SizedBox(height: 10,), 
             //Product List

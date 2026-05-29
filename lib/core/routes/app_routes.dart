@@ -1,5 +1,7 @@
 class AppRoutes {
   static const home = '/'; 
+  static const login = '/login'; 
+  static const checkout = '/checkout'; 
   static const productDetail = '/product-detail'; 
   static const cart = '/cart';
   static const profile = '/profile';

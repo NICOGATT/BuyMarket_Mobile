@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
 import '../../home/models/product.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CartServices extends ChangeNotifier {
+  static const String cartKey = 'cart';
   final List<CartItem> _items = []; 
   double get total {
     return _items.fold(0, (sum, item) {
@@ -34,6 +36,7 @@ class CartServices extends ChangeNotifier {
       );
     }
     notifyListeners();
+    saveCart();
   }
 
   void increaseQuantity(Product product) {
@@ -49,6 +52,7 @@ class CartServices extends ChangeNotifier {
       );
     }
     notifyListeners();
+    saveCart();
   }
 
   void decreaseQuantity(Product product) {
@@ -70,16 +74,47 @@ class CartServices extends ChangeNotifier {
     }
 
     notifyListeners();
+    saveCart();
   }  
 
   void clearCart() {
     _items.clear(); 
     notifyListeners();
+    saveCart();
   }
 
   int get totalItems {
     return _items.fold(0, (sum, item) {
       return sum + item.quantity;
     });
+  }
+
+  Future<void> saveCart() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final cartData = _items.map((item) {
+      return '${item.product.id}:${item.quantity}';
+    }).toList();
+    await prefs.setStringList(cartKey, cartData); 
+  }
+
+  Future<void> loadCart(List<Product> products) async {
+    final prefs = await SharedPreferences.getInstance(); 
+
+    final cartData = prefs.getStringList(cartKey);
+
+    if(cartData == null) return; 
+
+    _items.clear();
+
+    for (final itemData in cartData) {
+      final parts = itemData.split(':'); 
+
+      final productId = int.parse(parts[0]);
+      final quantity = int.parse(parts[1]);
+
+      final product = products.firstWhere((p) => p.id == productId);
+      _items.add(CartItem(product: product, quantity: quantity));
+    }
   }
 }
