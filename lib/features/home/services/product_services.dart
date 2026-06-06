@@ -1,28 +1,30 @@
+import 'package:flutter/material.dart';
 import '../models/product.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-class ProductServices {
-  Future<List<Product>> getProducts() async {
-    final response = await http.get(
-      Uri.parse('https://fakestoreapi.com/products'),
-    );
+import 'product_api_service.dart';
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+class ProductService extends ChangeNotifier {
+  final ProductApiService _api = ProductApiService();
 
-      return data.map((json) {
-        return Product(
-          id : json["id"],
-          title : json["title"],
-          description : json["description"],
-          category : json["category"],
-          price : json["price"].toString(),
-          imageUrl: json['image']
-        );
-      }).toList();
-    } else {
-      throw Exception("Error al cargar productos");
+  final List<Product> _products = [];
+
+  List<Product> get products => _products;
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  Future<void> loadProducts() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await _api.getProducts();
+
+      _products
+        ..clear()
+        ..addAll(result);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
-
 }

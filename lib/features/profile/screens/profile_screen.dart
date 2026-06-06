@@ -1,88 +1,141 @@
-import '../../../core/routes/app_routes.dart';
 import 'package:flutter/material.dart';
+
 import '../../auth/services/auth_services_instance.dart';
+import '../../../core/routes/app_routes.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen ({super.key}); 
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Perfil'),
-        centerTitle: true,
-      ),
-      body: AnimatedBuilder(
-        animation: authServices, 
-        builder: (context, child) {
-          return Padding(
-            padding: const EdgeInsets.all(16), 
+
+    return AnimatedBuilder(
+      animation: authServices,
+
+      builder: (context, child) {
+
+        if (!authServices.isLoggeIn) {
+
+          return Scaffold(
+            backgroundColor: const Color(0xffFBF5FF),
+
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+
+                child: Column(
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
+
+                  children: [
+
+                    const Icon(
+                      Icons.person_outline,
+                      size: 90,
+                      color: Color(0xff2D006B),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'No has iniciado sesión',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    const Text(
+                      'Ingresá para acceder a tu perfil y compras',
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+
+                      child: ElevatedButton(
+                        onPressed: () {
+
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.login,
+                          );
+                        },
+
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color(0xff168BEE),
+
+                          foregroundColor: Colors.white,
+                        ),
+
+                        child: const Text(
+                          'Iniciar sesión',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        // PERFIL LOGUEADO
+        return Scaffold(
+          backgroundColor: const Color(0xffFBF5FF),
+
+          appBar: AppBar(
+            title: const Text('Perfil'),
+          ),
+
+          body: Center(
             child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+
               children: [
+
                 const CircleAvatar(
-                  radius: 45,
+                  radius: 50,
                   child: Icon(
                     Icons.person,
                     size: 50,
                   ),
-                ), 
-                
-                const SizedBox(height: 6,), 
-                const Text(
-                  "Usuario Buy Market", 
-                  style: TextStyle(
-                    fontSize: 22, 
-                    fontWeight: FontWeight.bold
-                  ),
-                ), 
-                const SizedBox(height: 6,), 
-                const Text(
-                  'usuario@buyMarket.com', 
-                  style: TextStyle(
-                    color: Colors.grey
-                  ),
-                ), 
-                const SizedBox(height: 30,), 
-                ListTile(
-                  leading: const Icon(Icons.shopping_bag),
-                  title: const Text('Mis compras'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: (){},
-                ), 
-                ListTile(
-                  leading: const Icon(Icons.favorite),
-                  title: const Text('Favoritos'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {},
                 ),
 
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: const Text('Configuración'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {},
+                const SizedBox(height: 20),
+
+                Text(
+                  authServices.user?.email ??'Usuario BuyMarket',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
-                const Spacer(),
+                const SizedBox(height: 30),
 
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context, 
-                        AppRoutes.login
-                      );
-                    },
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Cerrar sesión'),
+                ElevatedButton(
+                  onPressed: () async {
+
+                    await authServices.logout();
+                  },
+
+                  child: const Text(
+                    'Cerrar sesión',
                   ),
                 ),
               ],
             ),
-          );
-        }
-      )
+          ),
+        );
+      },
     );
   }
 }

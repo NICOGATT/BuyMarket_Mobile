@@ -117,4 +117,13 @@ class CartServices extends ChangeNotifier {
       _items.add(CartItem(product: product, quantity: quantity));
     }
   }
+
+  void removeProduct(Product product) {
+    _items.removeWhere(
+      (item) => item.product.id == product.id,
+    );
+
+    notifyListeners();
+    saveCart();
+  }
 }

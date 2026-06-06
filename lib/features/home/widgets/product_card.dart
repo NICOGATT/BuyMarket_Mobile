@@ -67,12 +67,15 @@ class ProductCard extends StatelessWidget {
                 top: Radius.circular(16),
               ),
 
-              child: Image.network(
-                product.imageUrl,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: SizedBox(
+                height: 140,
+                child: Image.network(
+                  product.imageUrl,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              )
             ),
 
             Padding(
@@ -82,6 +85,8 @@ class ProductCard extends StatelessWidget {
                 children: [
                   Text(
                     product.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -111,7 +116,9 @@ class ProductCard extends StatelessWidget {
 
                   Text(
                     product.description,
-                    style: const TextStyle(fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color : Colors.grey),
                   ),
 
                   const SizedBox(height: 12),

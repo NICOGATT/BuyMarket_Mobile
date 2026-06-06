@@ -6,4 +6,6 @@ class AppRoutes {
   static const cart = '/cart';
   static const profile = '/profile';
   static const favorites = '/favorites';
+  static const authWelcome = '/auth-welcome';
+  static const bottomNavigation = '/bottom-navigation';
 }

@@ -10,6 +10,7 @@ import 'features/products/screens/producto_detail_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/checkout/screens/checkout_screen.dart';
 import 'core/guards/auth_guard.dart';
+import 'features/auth/screens/auth_welcome_screen.dart';
 
 class BuyMarketApp extends StatelessWidget {
   const BuyMarketApp({super.key}); 
@@ -30,7 +31,9 @@ class BuyMarketApp extends StatelessWidget {
         AppRoutes.login : (context) => const LoginScreen(), 
         AppRoutes.favorites :  (context) => const FavoritesScreen(),
         AppRoutes.profile : (context) => const AuthGuard(child: ProfileScreen()),
-        AppRoutes.checkout : (context) => const AuthGuard(child: CheckoutScreen())
+        AppRoutes.checkout : (context) => const AuthGuard(child: CheckoutScreen()), 
+        AppRoutes.authWelcome : (context) => const AuthWelcomeScreen(),
+        AppRoutes.bottomNavigation: (context) => const BottomNavigationScreen(),
       }, 
       onGenerateRoute : (settings) {
         if (settings.name == AppRoutes.productDetail) {

@@ -15,7 +15,7 @@ class BottomNavigationScreen extends StatefulWidget {
 class _BottomNavigationState extends State<BottomNavigationScreen> {
   int currentIndex = 0; 
 
-  final List<Widget> screens = [
+  final List<Widget> screens = const [
     HomeScreen(), 
     FavoritesScreen(),
     CartScreen(), 
@@ -28,8 +28,15 @@ class _BottomNavigationState extends State<BottomNavigationScreen> {
       animation: cartService, 
       builder: (context, child) {
         return Scaffold(
-          body : screens[currentIndex], 
+          body : IndexedStack(
+            index: currentIndex,
+            children: screens,
+          ), 
           bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: const Color(0xff2D006B),
+            selectedItemColor: const Color(0xff7FE3FF),
+            unselectedItemColor: Colors.white70,
+            showUnselectedLabels: true,
             currentIndex: currentIndex,
             type : BottomNavigationBarType.fixed,
             onTap: (index) {
@@ -54,8 +61,8 @@ class _BottomNavigationState extends State<BottomNavigationScreen> {
                     const Icon(Icons.shopping_cart),
                     if(cartService.totalItems > 0) 
                       Positioned(
-                        right: -1,
-                        top: -2,
+                        right: -4,
+                        top: -4,
                         child: Container(
                           width: 16,
                           height: 16,
@@ -75,7 +82,7 @@ class _BottomNavigationState extends State<BottomNavigationScreen> {
                       )
                   ],
                 ),
-                label: 'carrito'
+                label: 'Carrito'
               ), 
               BottomNavigationBarItem(
                 icon: Icon(Icons.person),
