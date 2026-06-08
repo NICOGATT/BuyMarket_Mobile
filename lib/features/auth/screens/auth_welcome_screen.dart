@@ -46,7 +46,9 @@ class AuthWelcomeScreen extends StatelessWidget{
                     backgroundColor: Colors.black87, 
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: (){}, 
+                  onPressed: (){
+                    Navigator.pushNamed(context, AppRoutes.register);
+                  }, 
                   child: const Text(
                     'Registrarse', 
                     style: TextStyle(fontSize: 20),

@@ -368,10 +368,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          // Navigator.pushNamed(
-                          //   context,
-                          //   AppRoutes.,
-                          // );
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.register,
+                          );
                         },
 
                         child: const Text(

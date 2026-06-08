@@ -79,7 +79,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 28,), 
 
-              const Text(,
+              const Text(
                 'Creá tu cuenta', 
                 style: TextStyle(
                   fontSize: 30, 
@@ -88,7 +88,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ), 
 
-              const SizedBox(height: 30,), 
+              const SizedBox(height: 30,),
+
+              const Icon(
+                Icons.person_add_alt_1, 
+                size: 85,
+                color : Color(0xff168BEE), 
+              ), 
+
+              const SizedBox(height: 80,), 
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -97,9 +105,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     TextField(
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        prefixIcon: const Icon(Icons.person_outline),
 
-                        hintText: 'Ingresá tu email',
+                        hintText: 'Ingresá tu nombre',
 
                         filled: true,
                         fillColor: Colors.white,
@@ -125,8 +133,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                       ),
-                      controller: emailController,
+                      controller: nameController,
                     ), 
+                    const SizedBox(height: 20,),
                     TextField(
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.email_outlined),
@@ -159,7 +168,142 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       controller: emailController,
                     ), 
+                    const SizedBox(height: 20,), 
 
+                    TextField(
+                      obscureText: true,
+
+                      decoration: InputDecoration(
+                        prefixIcon:
+                            const Icon(Icons.lock_outline),
+
+                        hintText: 'Ingresá tu contraseña',
+
+                        filled: true,
+                        fillColor: Colors.white,
+
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                        ),
+
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+
+                          borderSide: BorderSide(
+                            color: Colors.grey.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                      controller: passwordController,
+                    ),
+                    const SizedBox(height: 20,),
+                    TextField(
+                      obscureText: true,
+
+                      decoration: InputDecoration(
+                        prefixIcon:
+                            const Icon(Icons.lock_reset),
+
+                        hintText: 'Repeti tu contraseña',
+
+                        filled: true,
+                        fillColor: Colors.white,
+
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                        ),
+
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(12),
+
+                          borderSide: BorderSide(
+                            color: Colors.grey.withValues(
+                              alpha: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                      controller: confirmPasswordController,
+                    ),
+                    const SizedBox(height: 32,), 
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: isLoading 
+                          ? null 
+                          : () async {
+                            setState(() => isLoading = true);
+                            try {
+                              await register(); 
+                              if (!context.mounted) return; 
+                              Navigator.pushReplacementNamed(
+                                context, 
+                                AppRoutes.bottomNavigation
+                              );
+                            } catch (e) { 
+                              if (!context.mounted) return; 
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString()))
+                              ); 
+                            } finally {
+                              if(mounted) {
+                                setState(() => isLoading = false ); 
+                              }
+                            }
+                          } ,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff168BEE), 
+                          foregroundColor: Colors.white, 
+                          elevation: 4, 
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(40),
+                          )
+                        ),
+                        child: isLoading 
+                          ? const CircularProgressIndicator(
+                              color : Colors.white, 
+                            )
+                          : const Text (
+                            'Registrarse', 
+                            style : TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          )
+                      ),
+                    ), 
+                    const SizedBox(height:20), 
+                    Center(
+                      child : TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        }, 
+                        child: const Text(
+                          'Ya tengo cuenta', 
+                          style: TextStyle(
+                            color : Color(0xff2D006B),
+                            fontWeight: FontWeight.bold, 
+                          ),
+                        )
+                      )
+                    )
                   ],
                 )
               )
@@ -169,5 +313,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
 }

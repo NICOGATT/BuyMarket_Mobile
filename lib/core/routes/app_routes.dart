@@ -8,4 +8,5 @@ class AppRoutes {
   static const favorites = '/favorites';
   static const authWelcome = '/auth-welcome';
   static const bottomNavigation = '/bottom-navigation';
+  static const register = '/register';
 }
