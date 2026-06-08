@@ -32,4 +32,33 @@ class AuthApiServices {
 
     return AuthResponse.fromJson(data);
   }
+  Future<AuthResponse> register({
+    required String email,
+    required String name,
+    required String password,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/register');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email,
+        'name' : name,
+        'password': password,
+      }),
+    ).timeout(
+      const Duration(seconds: 8), 
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('No se pudo iniciar sesion ');
+    }
+
+    final data = jsonDecode(response.body);
+
+    return AuthResponse.fromJson(data);
+  }
 }

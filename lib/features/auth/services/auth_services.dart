@@ -7,6 +7,7 @@ class AuthServices extends ChangeNotifier{
   static const String userIdKey = 'user_id';
   static const String userEmailKey = 'user_email';
   static const String userRoleKey = 'user_role';
+  static const String userNameKey = 'user_nam'; 
   final AuthApiServices _authApiServices = AuthApiServices(); 
   AuthUser? _user;
   AuthUser? get user => _user;
@@ -55,8 +56,8 @@ class AuthServices extends ChangeNotifier{
     final userId = prefs.getString(userIdKey);
     final userEmail = prefs.getString(userEmailKey);
     final userRole = prefs.getString(userRoleKey);
-
-    if (token == null || userId == null || userEmail == null || userRole == null) {
+    final userName = prefs.getString(userNameKey);
+    if (token == null || userId == null || userEmail == null || userRole == null || userName == null) {
       _isLoggedIn = false;
       _user = null;
       notifyListeners();
@@ -65,11 +66,36 @@ class AuthServices extends ChangeNotifier{
 
     _user = AuthUser(
       id: userId,
+      name : userName, 
       email: userEmail,
       role: userRole,
     );
 
     _isLoggedIn = true;
+    notifyListeners();
+  }
+
+  Future<void> register({
+  required String name,
+  required String email,
+  required String password,
+  }) async {
+    final response = await _authApiServices.register(
+      name: name,
+      email: email,
+      password: password,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(tokenKey, response.token);
+    await prefs.setString(userIdKey, response.user.id);
+    await prefs.setString(userEmailKey, response.user.email);
+    await prefs.setString(userRoleKey, response.user.role);
+
+    _user = response.user;
+    _isLoggedIn = true;
+
     notifyListeners();
   }
 }
