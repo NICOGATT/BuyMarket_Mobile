@@ -1,14 +1,12 @@
 import 'package:buymarket_frontend/features/home/services/product_services.dart';
 import 'package:flutter/material.dart';
-// import '../widgets/product_card.dart';
+import '../widgets/product_card.dart';
 import '../models/product.dart';
-// import '../../../shared/widgets/search_input.dart';
+import '../../../shared/widgets/search_input.dart';
 import '../widgets/category_chip.dart';
-// import '../../cart/services/cart_services.dart';
+import '../../cart/services/cart_services.dart';
 import '../../cart/services/cart_services_instances.dart';
-import '../widgets/promo_banner.dart';
-import '../widgets/product_grid.dart';
-// import '../widgets/product_grid_card.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen ({super.key}); 
 
@@ -22,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String selectedCategory = ""; 
   String? errorMessage; 
 
-  final ProductService productServices = ProductService();
+  final ProductServices productServices = ProductServices();
 
   List<Product> products = [];
   bool isLoading = true; 
@@ -32,11 +30,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState(); 
     loadProducts();
   }
+
   Future<void> loadProducts() async {
     try {
-      await productServices.loadProducts();
-
-      final result = productServices.products;
+      final result = await productServices.getProducts();
 
       await cartService.loadCart(result);
 
@@ -64,8 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
   
   @override
   Widget build(BuildContext context) {
-    final recommendedProduct = products.take(3).toList();
-    final allProducts = filteredProducts; 
     return Scaffold(
       backgroundColor: const Color(0xffFAF5FC),
       body: SafeArea(
@@ -155,48 +150,52 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             Expanded(
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: const[
+                  _PromoBanner(), 
+                  SizedBox(height: 20,),
+                  Text(
+                    'Recomendados', 
+                    style: TextStyle(
+                      fontSize: 26, 
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ), 
+                  SizedBox(height: 16,), 
+                  _ProductGrid();
+                ],
+              ) 
+            )
+
+            const SizedBox(height: 10,), 
+            //Product List
+            Expanded(
+              child: isLoading ? const Center(
+                child : CircularProgressIndicator(),
+              ) : errorMessage != null 
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(errorMessage!),
+                    const SizedBox(height: 20,), 
+                    ElevatedButton(
+                      onPressed: (){
+                        setState(() {
+                          isLoading = true;
+                        });
+                        loadProducts();
+                      }, 
+                      child: const Text("Reintentar")
                     )
-                  : errorMessage != null
-                      ? Center(
-                          child: Text(errorMessage!),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            PromoBanner(),
-
-                            const SizedBox(height: 20),
-
-                            const Text(
-                              'Recomendados',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            ProductGrid(products: recommendedProduct),
-
-                            const SizedBox(height: 20),
-
-                            const Text(
-                              'Todos los productos',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            ProductGrid(products: allProducts),
-                          ],
-                        ),
+                  ],
+                ),
+              ): ListView(
+                children: filteredProducts.map((product) {
+                  return ProductCard(product : product);
+                }).toList(),
+              ),
             )
           ],
         )
