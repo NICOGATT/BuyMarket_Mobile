@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String baseUrl = 'http://192.168.0.213:3000';
+  static const String baseUrl = 'https://maverick-manned-freebee.ngrok-free.dev';
 }

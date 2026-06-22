@@ -9,4 +9,11 @@ class AppRoutes {
   static const authWelcome = '/auth-welcome';
   static const bottomNavigation = '/bottom-navigation';
   static const register = '/register';
+  static const myOrders = '/my-orders'; 
+  static const profileSettings = '/profile-settings'; 
+  static const myProducts = '/my-products'; 
+  static const addProduct = '/add-product'; 
+  static const addresses = '/addresses';
+  static const paymentMethods = '/payment-methods';
+  static const categories = '/categories'; 
 }

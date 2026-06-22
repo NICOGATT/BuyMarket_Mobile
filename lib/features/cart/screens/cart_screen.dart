@@ -1,9 +1,15 @@
-// import 'package:buymarket_frontend/features/home/models/product.dart';
+import 'package:buymarket_frontend/core/config/api.config.dart';
+import 'package:buymarket_frontend/core/routes/app_routes.dart';
 import 'package:buymarket_frontend/features/auth/services/auth_services_instance.dart';
+import 'package:buymarket_frontend/features/home/models/product.dart';
+import 'package:buymarket_frontend/features/cart/services/cart_services_instances.dart';
+import 'package:buymarket_frontend/features/home/widgets/product_card.dart';
 import 'package:flutter/material.dart';
-import '../services/cart_services_instances.dart';
-import '../../../core/routes/app_routes.dart';
 
+
+import '../services/cart_services.dart';
+import '../../auth/services/auth_services.dart';
+import '../../auth/screens/auth_welcome_screen.dart';
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -12,10 +18,14 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  @override 
+  void initState() {
+    super.initState(); 
+    cartService.loadCart();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // final items = cartService.items;
-
     return Scaffold(
       backgroundColor: const Color(0xffF6F7FB),
       appBar: AppBar(
@@ -33,7 +43,7 @@ class _CartScreenState extends State<CartScreen> {
         animation: cartService,
         builder: (context, child) {
           final items = cartService.items;
-
+          
           return items.isEmpty
               ? const Center(
                   child: Text(
@@ -48,7 +58,21 @@ class _CartScreenState extends State<CartScreen> {
                         padding: const EdgeInsets.all(16),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
-                          final product = items[index];
+                          final item = items[index];
+                          final product = item.product;
+
+                          final media = product['media'] as List?;
+
+                          String? imageUrl;
+
+                          if(media != null && media.isNotEmpty){
+                            final firstMedia = media.first; 
+
+                            if(firstMedia is Map) {
+                              imageUrl = firstMedia['url']?.toString();
+                            }
+                          }
+                          
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(12),
@@ -68,7 +92,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.network(
-                                    product.product.imageUrl,
+                                    imageUrl ?? '',
                                     width: 90,
                                     height: 90,
                                     fit: BoxFit.contain,
@@ -82,7 +106,7 @@ class _CartScreenState extends State<CartScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        product.product.title,
+                                        product['title'],
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -94,7 +118,7 @@ class _CartScreenState extends State<CartScreen> {
 
                                       const SizedBox(height: 8),
                                       Text(
-                                        '\$${product.product.price}',
+                                        '\$${product['price']}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 18,
@@ -109,7 +133,8 @@ class _CartScreenState extends State<CartScreen> {
                                     IconButton(
                                       onPressed: () {
                                         cartService.increaseQuantity(
-                                          product.product,
+                                          item.id,
+                                          item.quantity
                                         );
                                       },
                                       icon: const Icon(
@@ -119,7 +144,7 @@ class _CartScreenState extends State<CartScreen> {
                                     ),
 
                                     Text(
-                                      '${product.quantity}',
+                                      '${item.quantity}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -129,7 +154,8 @@ class _CartScreenState extends State<CartScreen> {
                                     IconButton(
                                       onPressed: () {
                                         cartService.decreaseQuantity(
-                                          product.product,
+                                          item.id, 
+                                          item.quantity
                                         );
                                       },
                                       icon: const Icon(
@@ -141,7 +167,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                                 IconButton(
                                   onPressed: () {
-                                    cartService.removeProduct(product.product);
+                                    cartService.removeItem(item.id);
                                   },
                                   icon: const Icon(
                                     Icons.delete_outline,
@@ -210,11 +236,7 @@ class _CartScreenState extends State<CartScreen> {
                         }
 
                         //Usuario logueado
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Compra realizada'),
-                          ),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.checkout);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff5E2CA5),

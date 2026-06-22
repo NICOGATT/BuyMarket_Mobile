@@ -45,12 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
 
                 decoration: BoxDecoration(
-                  color: const Color(0xff2D006B),
-
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
+                  color: const Color(0xff27174E),
 
                   boxShadow: [
                     BoxShadow(
@@ -87,10 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 30),
 
               // ICONO
-              const Icon(
-                Icons.shopping_cart_checkout,
-                size: 90,
-                color: Color(0xff168BEE),
+              Image.asset(
+                'assets/images/tarjeta.png',
+                height: 100,
+                fit: BoxFit.contain,
               ),
 
               const SizedBox(height: 40),

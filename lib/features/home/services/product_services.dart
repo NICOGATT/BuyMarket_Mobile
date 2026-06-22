@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../models/product.dart';
 import 'product_api_service.dart';
 
@@ -26,5 +29,52 @@ class ProductService extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<Product> createProduct({
+    required String title,
+    required String description,
+    required String price,
+    required int stock,
+    String? subCategoryId,
+    List<Map<String, dynamic>>? attributes,
+    List<String>? mediaIds,
+    required String token,
+    required String seller,
+  }) async {
+    final product = await _api.createProduct(
+      title: title,
+      description: description,
+      price: price,
+      stock: stock,
+      subCategoryId: subCategoryId,
+      attributes: attributes,
+      mediaIds: mediaIds,
+      token: token,
+      seller: seller,
+    );
+
+    await loadProducts();
+    return product;
+  }
+
+  Future<void> uploadProductImage({
+    required String productId,
+    required File imageFile,
+    required String token,
+  }) async {
+    await _api.uploadProductImage(
+      productId: productId,
+      imageFile: imageFile,
+      token: token,
+    );
+
+    await loadProducts();
+  }
+
+  Future<List<Product>> getMyProducts({
+    required String token,
+  }) async {
+    return await _api.getMyProducts(token: token);
   }
 }

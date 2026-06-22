@@ -14,24 +14,15 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 10),
-
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.deepPurple : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(12),
-        ),
-
-        child: Text(
-          title,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+    return ActionChip(
+      label: Text(title),
+      onPressed: onTap,
+      backgroundColor: isSelected
+          ? const Color(0xff5E2CA5)
+          : Colors.white,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black,
+        fontWeight: FontWeight.bold,
       ),
     );
   }

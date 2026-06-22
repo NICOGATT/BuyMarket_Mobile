@@ -1,3 +1,6 @@
+import 'package:buymarket_frontend/features/categories/screens/categories_screen.dart';
+import 'package:buymarket_frontend/features/categories/screens/category_products_screen.dart';
+import 'package:buymarket_frontend/features/categories/services/category_service_instace.dart';
 import 'package:buymarket_frontend/features/home/services/product_services.dart';
 import 'package:flutter/material.dart';
 // import '../widgets/product_card.dart';
@@ -8,37 +11,39 @@ import '../widgets/category_chip.dart';
 import '../../cart/services/cart_services_instances.dart';
 import '../widgets/promo_banner.dart';
 import '../widgets/product_grid.dart';
+
 // import '../widgets/product_grid_card.dart';
 class HomeScreen extends StatefulWidget {
-  const HomeScreen ({super.key}); 
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-
 class _HomeScreenState extends State<HomeScreen> {
   String search = "";
-  String selectedCategory = ""; 
-  String? errorMessage; 
+  String selectedCategory = "";
+  String? errorMessage;
 
   final ProductService productServices = ProductService();
 
   List<Product> products = [];
-  bool isLoading = true; 
+  bool isLoading = true;
 
   @override
   void initState() {
-    super.initState(); 
+    super.initState();
     loadProducts();
+    categoryService.loadCategories();
   }
+
   Future<void> loadProducts() async {
     try {
       await productServices.loadProducts();
 
       final result = productServices.products;
 
-      await cartService.loadCart(result);
+      await cartService.loadCart();
 
       setState(() {
         products = result;
@@ -55,153 +60,160 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Product> get filteredProducts {
     return products.where((product) {
-      final matchesSearch = product.title.toLowerCase().contains(search.toLowerCase()); 
-      final matchesCategory = selectedCategory.isEmpty || product.category == selectedCategory; 
-      return matchesSearch && matchesCategory; 
+      final matchesSearch = product.title.toLowerCase().contains(
+        search.toLowerCase(),
+      );
+      final matchesCategory =
+          selectedCategory.isEmpty || product.categoryId == selectedCategory;
+      return matchesSearch && matchesCategory;
     }).toList();
   }
 
-  
   @override
   Widget build(BuildContext context) {
     final recommendedProduct = products.take(3).toList();
-    final allProducts = filteredProducts; 
+    final allProducts = filteredProducts;
     return Scaffold(
       backgroundColor: const Color(0xffFAF5FC),
       body: SafeArea(
         child: Column(
           children: [
-            //Search bar 
+            //Search bar
             Container(
               color: const Color(0xff2D006B),
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const CircleAvatar(child: Icon(Icons.person),), 
-                  const SizedBox(width: 12,), 
-                  Expanded(child: TextField(
-                    onChanged: (value) {
-                      setState(() {
-                        search = value; 
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Buscar producto', 
-                      prefixIcon: const Icon(Icons.search), 
-                      filled: true, 
-                      fillColor: Colors.white, 
-                      contentPadding: EdgeInsets.zero, 
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30), 
-                        borderSide: BorderSide.none
-                      )
+                  const CircleAvatar(child: Icon(Icons.person)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          search = value;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Buscar producto',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.zero,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
-                  )),
-                  const SizedBox(width: 12,), 
+                  ),
+                  const SizedBox(width: 12),
                   const Icon(
                     Icons.notifications_none,
                     color: Colors.white,
-                    size: 30, 
+                    size: 30,
                   ),
                 ],
               ),
             ),
 
-            Container(
+           Container(
               color: const Color(0xff9ED8FF),
-              height: 42,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                children: [
-                  CategoryChip(
-                    title: 'Tecnologia', 
-                    isSelected: selectedCategory == "Tecnologia",
-                    onTap: () {
-                      setState(() {
-                        selectedCategory = selectedCategory == "Tecnologia" ? '' : 'Tecnologia';
-                      });
+              height: 52,
+              child: AnimatedBuilder(
+                animation: categoryService,
+                builder: (context, _) {
+                  final categories = categoryService.categories.take(4).toList();
+
+                  if (categoryService.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    itemCount: categories.length + 1,
+                    separatorBuilder: (context, index) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      if (index == categories.length) {
+                        return ActionChip(
+                          label: const Text('Ver más'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CategoriesScreen(),
+                              ),
+                            );
+                          },
+                        );
+                      }
+
+                      final category = categories[index];
+
+                      return CategoryChip(
+                        title: category.name,
+                        isSelected: selectedCategory == category.id,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CategoryProductsScreen(
+                                categoryId: category.id,
+                                categoryName: category.name,
+                              ),
+                            ),
+                          );
+                        },
+                      );
                     },
-                  ),
-                  CategoryChip(
-                    title: 'Moda', 
-                    isSelected: selectedCategory == "Moda",
-                    onTap: () {
-                      setState(() {
-                        selectedCategory = selectedCategory == "Moda" ? '' : "Moda";
-                      });
-                    },
-                  ),
-                  CategoryChip(
-                    title: 'Gaming', 
-                    isSelected: selectedCategory == "Gaming",
-                    onTap: () {
-                      setState(() {
-                        selectedCategory = selectedCategory == "Gaming" ? '' : "Gaming";
-                      });
-                    },
-                  ),
-                  CategoryChip(
-                    title: 'Mascotas', 
-                    isSelected: selectedCategory == "Mascotas",
-                    onTap: () {
-                      setState(() {
-                        selectedCategory = selectedCategory == "Mascotas" ? '' : "Mascotas";                
-                      });
-                    },
-                  ),
-                ],
+                  );
+                },
               ),
             ),
 
             Expanded(
               child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
+                  ? const Center(child: CircularProgressIndicator())
                   : errorMessage != null
-                      ? Center(
-                          child: Text(errorMessage!),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            PromoBanner(),
+                  ? Center(child: Text(errorMessage!))
+                  : ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        PromoBanner(),
 
-                            const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                            const Text(
-                              'Recomendados',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            ProductGrid(products: recommendedProduct),
-
-                            const SizedBox(height: 20),
-
-                            const Text(
-                              'Todos los productos',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            ProductGrid(products: allProducts),
-                          ],
+                        const Text(
+                          'Recomendados',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-            )
+
+                        const SizedBox(height: 16),
+
+                        ProductGrid(products: recommendedProduct),
+
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          'Todos los productos',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        ProductGrid(products: allProducts),
+                      ],
+                    ),
+            ),
           ],
-        )
-      ),  
+        ),
+      ),
     );
   }
 }
-

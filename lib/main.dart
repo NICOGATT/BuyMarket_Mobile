@@ -5,6 +5,6 @@ import 'features/auth/services/auth_services_instance.dart';
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await favoritesService.loadFavorites();
-   await authServices.checkSession();
+  await authServices.checkSession();
   runApp(const BuyMarketApp());
 }

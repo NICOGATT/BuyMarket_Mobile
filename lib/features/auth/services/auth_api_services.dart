@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:buymarket_frontend/features/auth/models/auth_response.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/config/api.config.dart';
-
+import 'package:flutter/material.dart';
 class AuthApiServices {
   Future<AuthResponse> login({
     required String email,
@@ -34,7 +34,8 @@ class AuthApiServices {
   }
   Future<AuthResponse> register({
     required String email,
-    required String name,
+    required String firstName,
+    required String lastName,
     required String password,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/register');
@@ -46,13 +47,16 @@ class AuthApiServices {
       },
       body: jsonEncode({
         'email': email,
-        'name' : name,
+        'firstName' : firstName,
+        'lastName' : lastName,
         'password': password,
       }),
     ).timeout(
       const Duration(seconds: 8), 
     );
 
+    debugPrint('STATUS REGISTER: ${response.statusCode}');
+    debugPrint('BODY REGISTER: ${response.body}');
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception('No se pudo iniciar sesion ');
     }

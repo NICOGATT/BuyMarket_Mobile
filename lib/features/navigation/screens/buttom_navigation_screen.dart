@@ -4,62 +4,56 @@ import '../../home/screens/home_screen.dart';
 import '../../cart/screens/cart_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../cart/services/cart_services_instances.dart';
+
 class BottomNavigationScreen extends StatefulWidget {
   const BottomNavigationScreen({super.key});
 
-  @override 
-  State<BottomNavigationScreen> createState() =>
-    _BottomNavigationState();
+  @override
+  State<BottomNavigationScreen> createState() => _BottomNavigationState();
 }
 
 class _BottomNavigationState extends State<BottomNavigationScreen> {
-  int currentIndex = 0; 
+  int currentIndex = 0;
 
   final List<Widget> screens = const [
-    HomeScreen(), 
+    HomeScreen(),
     FavoritesScreen(),
-    CartScreen(), 
+    CartScreen(),
     ProfileScreen(),
   ];
 
-  @override 
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: cartService, 
+      animation: cartService,
       builder: (context, child) {
         return Scaffold(
-          body : IndexedStack(
-            index: currentIndex,
-            children: screens,
-          ), 
+          body: IndexedStack(index: currentIndex, children: screens),
           bottomNavigationBar: BottomNavigationBar(
             backgroundColor: const Color(0xff2D006B),
             selectedItemColor: const Color(0xff7FE3FF),
             unselectedItemColor: Colors.white70,
             showUnselectedLabels: true,
             currentIndex: currentIndex,
-            type : BottomNavigationBarType.fixed,
+            type: BottomNavigationBarType.fixed,
             onTap: (index) {
               setState(() {
                 currentIndex = index;
               });
             },
 
-            items : [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Inicio'
-              ), 
+            items: [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
               BottomNavigationBarItem(
                 icon: Icon(Icons.favorite),
-                label: 'Favoritos'
-              ), 
+                label: 'Favoritos',
+              ),
               BottomNavigationBarItem(
                 icon: Stack(
                   clipBehavior: Clip.none,
                   children: [
                     const Icon(Icons.shopping_cart),
-                    if(cartService.totalItems > 0) 
+                    if (cartService.badgeCount > 0)
                       Positioned(
                         right: -4,
                         top: -4,
@@ -68,30 +62,30 @@ class _BottomNavigationState extends State<BottomNavigationScreen> {
                           height: 16,
                           alignment: Alignment.center,
                           decoration: const BoxDecoration(
-                            color: Colors.red, 
+                            color: Colors.red,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
-                          '${cartService.totalItems}', 
-                          style: const TextStyle(
-                            fontSize: 9, 
-                            fontWeight: FontWeight.bold
+                            '${cartService.badgeCount}',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        ),
-                      )
+                      ),
                   ],
                 ),
-                label: 'Carrito'
-              ), 
+                label: 'Carrito',
+              ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person),
-                label: 'Perfil'
-              ), 
-            ]
-          )
+                label: 'Perfil',
+              ),
+            ],
+          ),
         );
-      }
+      },
     );
   }
 }

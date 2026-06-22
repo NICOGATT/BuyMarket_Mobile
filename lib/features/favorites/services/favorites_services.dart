@@ -1,41 +1,79 @@
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 
-class FavoritesServices extends ChangeNotifier{
-  static const String favoritesKey = 'favorites';
-  final List<int> _favoriteIds = []; 
+import '../../auth/services/auth_services_instance.dart';
+import '../../home/models/product.dart';
+import 'favorites_api_services.dart';
 
-  List<int> get favoriteIds => _favoriteIds; 
+class FavoritesService extends ChangeNotifier {
+  final FavoritesApiServices _api = FavoritesApiServices();
 
-  bool isFavorite(int productId){
-    return _favoriteIds.contains(productId); 
-  }
+  final List<Product> _favorites = [];
 
-  void toggleFavorite(int productId) {
-    if(_favoriteIds.contains(productId)){
-      _favoriteIds.remove(productId);
-    }else {
-      _favoriteIds.add(productId);
-    }
+  List<Product> get favorites => _favorites;
 
-    notifyListeners();
-    saveFavorites();
-  }
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
 
-  Future<void> saveFavorites()async {
-    final prefs = await SharedPreferences.getInstance();
-    final ids = _favoriteIds.map((id) => id.toString()).toList();
-    await prefs.setStringList(favoritesKey, ids);
+  bool isFavorite(String productId) {
+    return _favorites.any((product) => product.id == productId);
   }
 
   Future<void> loadFavorites() async {
-    final prefs = await SharedPreferences.getInstance(); 
-    final ids = prefs.getStringList(favoritesKey); 
+    final token = authServices.token;
 
-    if (ids != null) {
-      _favoriteIds.clear();
-      _favoriteIds.addAll(ids.map((id) => int.parse(id)));
+    if (token == null) {
+      _favorites.clear();
+      notifyListeners();
+      return;
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final result = await _api.getMyFavorites(token: token);
+
+      _favorites
+        ..clear()
+        ..addAll(result);
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> toggleFavorite(String productId) async {
+    final token = authServices.token;
+
+    if (token == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final alreadyFavorite = isFavorite(productId);
+
+    if (alreadyFavorite) {
+      await _api.removeFavorite(
+        productId: productId,
+        token: token,
+      );
+
+      _favorites.removeWhere(
+        (product) => product.id == productId,
+      );
+    } else {
+      await _api.addFavorite(
+        productId: productId,
+        token: token,
+      );
+
+      await loadFavorites();
+    }
+
+    notifyListeners();
+  }
+
+  void clearFavorites() {
+    _favorites.clear();
+    notifyListeners();
   }
 }

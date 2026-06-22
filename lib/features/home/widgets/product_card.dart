@@ -43,9 +43,9 @@ class ProductCard extends StatelessWidget {
               right: 10,
               top: 10,
               child: AnimatedBuilder(
-                animation: favoritesService, 
+                animation: favoritesService,
                 builder: (context, child) {
-                  final isFavorite = favoritesService.isFavorite(product.id); 
+                  final isFavorite = favoritesService.isFavorite(product.id);
                   return GestureDetector(
                     onTap: () {
                       favoritesService.toggleFavorite(product.id);
@@ -58,7 +58,7 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   );
-                }
+                },
               ),
             ),
             //IMAGE
@@ -75,7 +75,7 @@ class ProductCard extends StatelessWidget {
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
-              )
+              ),
             ),
 
             Padding(
@@ -118,7 +118,7 @@ class ProductCard extends StatelessWidget {
                     product.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color : Colors.grey),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
 
                   const SizedBox(height: 12),
@@ -128,11 +128,13 @@ class ProductCard extends StatelessWidget {
 
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        cartService.addProduct(product);
+                        cartService.addProduct(product.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${product.title} agregado al carrito'),
-                          )
+                            content: Text(
+                              '${product.title} agregado al carrito',
+                            ),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.shopping_cart),
