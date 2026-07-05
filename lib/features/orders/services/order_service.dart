@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 
 import '../../auth/services/auth_services.dart';
 import '../models/order_model.dart';
 import 'order_api_service.dart';
 
-class OrderService extends ChangeNotifier {
+class OrderService extends SafeChangeNotifier {
   final OrderApiService _orderApiService;
   final AuthServices _authServices;
 
@@ -34,7 +34,8 @@ class OrderService extends ChangeNotifier {
 
   Future<OrderModel?> checkout({
     required String deliveryAddress,
-    required String paymentMethod,
+    String? paymentMethod,
+    String? paymentMethodId,
     String? notes,
   }) async {
     if (!_authServices.isLoggeIn) {
@@ -50,6 +51,7 @@ class OrderService extends ChangeNotifier {
         token: _token,
         deliveryAddress: deliveryAddress,
         paymentMethod: paymentMethod,
+        paymentMethodId: paymentMethodId,
         notes: notes,
       );
 

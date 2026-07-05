@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 
 import '../models/product.dart';
 import 'product_api_service.dart';
 
-class ProductService extends ChangeNotifier {
+class ProductService extends SafeChangeNotifier {
   final ProductApiService _api = ProductApiService();
 
   final List<Product> _products = [];

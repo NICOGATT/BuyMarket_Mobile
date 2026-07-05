@@ -71,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
                     title: 'Billetera',
                     isHighlighted: true,
                     onTap: () {
-                      // TODO: conectar con la ruta de billetera cuando exista.
+                      Navigator.pushNamed(context, AppRoutes.wallet);
                     },
                   ),
                   const SizedBox(height: 18),

@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 
 import '../../auth/services/auth_services_instance.dart';
 import '../../home/models/product.dart';
 import 'favorites_api_services.dart';
 
-class FavoritesService extends ChangeNotifier {
+class FavoritesService extends SafeChangeNotifier {
   final FavoritesApiServices _api = FavoritesApiServices();
 
   final List<Product> _favorites = [];

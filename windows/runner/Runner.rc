@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "buymarket_frontend" "\0"
+            VALUE "FileDescription", "Buy Market" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "buymarket_frontend" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "buymarket_frontend.exe" "\0"
-            VALUE "ProductName", "buymarket_frontend" "\0"
+            VALUE "ProductName", "Buy Market" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

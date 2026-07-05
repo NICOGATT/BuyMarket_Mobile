@@ -1,11 +1,11 @@
 {
-    "name": "buymarket_frontend",
-    "short_name": "buymarket_frontend",
+    "name": "Buy Market",
+    "short_name": "Buy Market",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Buy Market marketplace app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

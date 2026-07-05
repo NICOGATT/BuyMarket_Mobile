@@ -1,43 +1,38 @@
 import 'dart:convert';
 
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 import 'package:buymarket_frontend/features/auth/models/auth_user.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_api_services.dart';
-class AuthServices extends ChangeNotifier{
+
+class AuthServices extends SafeChangeNotifier {
   static const String tokenKey = 'token';
   static const String userIdKey = 'user_id';
   static const String userEmailKey = 'user_email';
   static const String userRoleKey = 'user_role';
-  static const String userNameKey = 'user_firstName'; 
-  static const String userlastNameKey = 'user_lastName'; 
-  final AuthApiServices _authApiServices = AuthApiServices(); 
+  static const String userNameKey = 'user_firstName';
+  static const String userlastNameKey = 'user_lastName';
+  static const String userEmailVerifiedKey = 'user_email_verified';
+  final AuthApiServices _authApiServices = AuthApiServices();
   AuthUser? _user;
   AuthUser? get user => _user;
-  bool _isLoggedIn = false; 
-  bool get isLoggeIn => _isLoggedIn; 
+  bool _isLoggedIn = false;
+  bool get isLoggeIn => _isLoggedIn;
   String? _token;
   String? get token => _token;
 
-  Future<void> login({
-    required String email, 
-    required String password, 
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     final response = await _authApiServices.login(
       email: email,
       password: password,
     );
 
-    _token = response.token; 
+    _token = response.token;
 
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(tokenKey, response.token);
-    await prefs.setString(userIdKey, response.user.id);
-    await prefs.setString(userEmailKey, response.user.email);
-    await prefs.setString(userRoleKey, response.user.role);
-    await prefs.setString(userNameKey, response.user.firstName);
-    await prefs.setString(userlastNameKey, response.user.lastName);
+    await _persistUser(prefs, response.user);
     _user = response.user;
     _isLoggedIn = true;
 
@@ -53,9 +48,10 @@ class AuthServices extends ChangeNotifier{
     await prefs.remove(userRoleKey);
     await prefs.remove(userNameKey);
     await prefs.remove(userlastNameKey);
+    await prefs.remove(userEmailVerifiedKey);
 
     _user = null;
-    _token = null; 
+    _token = null;
     _isLoggedIn = false;
 
     notifyListeners();
@@ -65,29 +61,36 @@ class AuthServices extends ChangeNotifier{
     final prefs = await SharedPreferences.getInstance();
 
     final token = prefs.getString(tokenKey);
-    _token = token; 
+    _token = token;
     final userId = prefs.getString(userIdKey);
     final userEmail = prefs.getString(userEmailKey);
     final userRole = prefs.getString(userRoleKey);
     final userName = prefs.getString(userNameKey);
     final userLastName = prefs.getString(userlastNameKey);
-    if (token == null || userId == null || userEmail == null || userRole == null) {
+    final userEmailVerified = prefs.getBool(userEmailVerifiedKey);
+    if (token == null ||
+        userId == null ||
+        userEmail == null ||
+        userRole == null) {
       _isLoggedIn = false;
       _user = null;
       notifyListeners();
       return;
     }
 
-    final restoredUserJson = {
+    final restoredUserJson = <String, dynamic>{
       ..._tokenPayload(token),
       'id': userId,
       'email': userEmail,
       'role': userRole,
-      if (userName != null && userName.trim().isNotEmpty)
-        'firstName': userName,
+      if (userName != null && userName.trim().isNotEmpty) 'firstName': userName,
       if (userLastName != null && userLastName.trim().isNotEmpty)
         'lastName': userLastName,
     };
+
+    if (userEmailVerified != null) {
+      restoredUserJson['emailVerified'] = userEmailVerified;
+    }
 
     _user = AuthUser.fromJson(restoredUserJson);
 
@@ -96,10 +99,10 @@ class AuthServices extends ChangeNotifier{
   }
 
   Future<void> register({
-  required String firstName,
-  required String lastName,
-  required String email,
-  required String password,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
   }) async {
     final response = await _authApiServices.register(
       firstName: firstName,
@@ -111,9 +114,6 @@ class AuthServices extends ChangeNotifier{
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.setString(tokenKey, response.token);
-    await prefs.setString(userIdKey, response.user.id);
-    await prefs.setString(userEmailKey, response.user.email);
-    await prefs.setString(userRoleKey, response.user.role);
     final registeredUser = AuthUser(
       id: response.user.id,
       email: response.user.email,
@@ -124,16 +124,92 @@ class AuthServices extends ChangeNotifier{
       lastName: response.user.lastName.isNotEmpty
           ? response.user.lastName
           : lastName,
+      emailVerified: response.user.emailVerified,
     );
 
-    await prefs.setString(userNameKey, registeredUser.firstName);
-    await prefs.setString(userlastNameKey, registeredUser.lastName);
+    await _persistUser(prefs, registeredUser);
 
     _user = registeredUser;
-    _token = response.token; 
+    _token = response.token;
     _isLoggedIn = true;
 
     notifyListeners();
+  }
+
+  Future<AuthUser> refreshCurrentUser() async {
+    final currentToken = _token;
+
+    if (!_isLoggedIn || currentToken == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final refreshedUser = await _authApiServices.getCurrentUser(
+      token: currentToken,
+    );
+    final userWithFallback = await _completeUserFromUsersIfNeeded(
+      token: currentToken,
+      user: refreshedUser,
+    );
+    final mergedUser = _mergeUser(_user, userWithFallback);
+    final prefs = await SharedPreferences.getInstance();
+
+    await _persistUser(prefs, mergedUser);
+
+    _user = mergedUser;
+    _isLoggedIn = true;
+    notifyListeners();
+
+    return mergedUser;
+  }
+
+  Future<AuthUser> _completeUserFromUsersIfNeeded({
+    required String token,
+    required AuthUser user,
+  }) async {
+    if (user.lastName.trim().isNotEmpty) return user;
+
+    try {
+      final usersUser = await _authApiServices.getUserFromUsers(
+        token: token,
+        currentUser: user,
+      );
+
+      if (usersUser == null) return user;
+
+      return _mergeUser(user, usersUser);
+    } catch (_) {
+      return user;
+    }
+  }
+
+  AuthUser _mergeUser(AuthUser? currentUser, AuthUser refreshedUser) {
+    if (currentUser == null) return refreshedUser;
+
+    return AuthUser(
+      id: refreshedUser.id.isNotEmpty ? refreshedUser.id : currentUser.id,
+      email: refreshedUser.email.isNotEmpty
+          ? refreshedUser.email
+          : currentUser.email,
+      role: refreshedUser.role.isNotEmpty
+          ? refreshedUser.role
+          : currentUser.role,
+      firstName: refreshedUser.firstName.isNotEmpty
+          ? refreshedUser.firstName
+          : currentUser.firstName,
+      lastName: refreshedUser.lastName.isNotEmpty
+          ? refreshedUser.lastName
+          : currentUser.lastName,
+      emailVerified: refreshedUser.emailVerified || currentUser.emailVerified,
+    );
+  }
+
+  Future<void> _persistUser(SharedPreferences prefs, AuthUser user) async {
+    await prefs.setString(userIdKey, user.id);
+    await prefs.setString(userEmailKey, user.email);
+    await prefs.setString(userRoleKey, user.role);
+    await prefs.setString(userNameKey, user.firstName);
+    await prefs.setString(userlastNameKey, user.lastName);
+    await prefs.setBool(userEmailVerifiedKey, user.emailVerified);
   }
 
   Map<String, dynamic> _tokenPayload(String token) {

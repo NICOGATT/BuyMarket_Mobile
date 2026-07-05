@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 import '../models/category_model.dart';
 import 'category_api_service.dart';
 
-class CategoryService extends ChangeNotifier {
+class CategoryService extends SafeChangeNotifier {
   final CategoryApiService _api = CategoryApiService();
 
   bool isLoading = false;
@@ -17,7 +17,6 @@ class CategoryService extends ChangeNotifier {
     try {
       final data = await _api.getCategories();
       categories = data.map((e) => CategoryModel.fromJson(e)).toList();
-      debugPrint('CATEGORIAS CARGADAS: ${categories.length}');
     } catch (e) {
       error = e.toString();
     }

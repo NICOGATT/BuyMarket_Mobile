@@ -1,10 +1,10 @@
 import 'package:buymarket_frontend/features/cart/models/cart_item.dart';
-import 'package:flutter/foundation.dart';
+import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
 import '../../auth/services/auth_services.dart';
 import '../models/cart_model.dart';
 import 'cart_api_services_instances.dart';
 
-class CartService extends ChangeNotifier {
+class CartService extends SafeChangeNotifier {
   final CartApiService _cartApiService;
   final AuthServices _authServices;
 

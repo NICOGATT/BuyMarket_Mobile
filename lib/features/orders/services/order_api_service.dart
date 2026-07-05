@@ -19,17 +19,25 @@ class OrderApiService {
   Future<Map<String, dynamic>> checkout({
     required String token,
     required String deliveryAddress,
-    required String paymentMethod,
+    String? paymentMethod,
+    String? paymentMethodId,
     String? notes,
   }) async {
+    final body = <String, dynamic>{
+      'deliveryAddress': deliveryAddress,
+      'notes': notes,
+    };
+
+    if (paymentMethodId != null && paymentMethodId.trim().isNotEmpty) {
+      body['paymentMethodId'] = paymentMethodId;
+    } else if (paymentMethod != null && paymentMethod.trim().isNotEmpty) {
+      body['paymentMethod'] = paymentMethod;
+    }
+
     final response = await http.post(
       Uri.parse('$baseUrl/orders/checkout'),
       headers: _headers(token),
-      body: jsonEncode({
-        'deliveryAddress': deliveryAddress,
-        'paymentMethod': paymentMethod,
-        'notes': notes,
-      }),
+      body: jsonEncode(body),
     );
 
     debugPrint('CHECKOUT STATUS: ${response.statusCode}');

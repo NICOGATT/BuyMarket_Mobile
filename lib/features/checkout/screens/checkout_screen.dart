@@ -1,26 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../auth/services/auth_services_instance.dart';
 import '../../cart/services/cart_services_instances.dart';
 import '../../orders/services/order_service_instance.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../paymentMethods/models/user_payment_method.dart';
 import '../../paymentMethods/service/payment_api_service.dart';
-import '../../auth/services/auth_services_instance.dart';
-class CheckoutScreen extends StatefulWidget{
-  const CheckoutScreen({super.key}); 
+import '../../paymentMethods/service/user_payment_method_service_instance.dart';
+
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
 
   @override
-  State<CheckoutScreen> createState() => _CheckoutScreenState(); 
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String deliveryMethod = "delivery"; 
-  String paymentMethod = "mercado_pago"; 
+  String deliveryMethod = 'delivery';
+  String paymentMethod = 'mercado_pago';
+  String? selectedPaymentMethodId;
 
-  final addressController = TextEditingController(); 
-  final notesController = TextEditingController(); 
+  final addressController = TextEditingController();
+  final notesController = TextEditingController();
 
-  bool isLoading = false; 
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await userPaymentMethodService.loadPaymentMethods();
+      if (!mounted) return;
+      _selectDefaultPaymentMethodIfNeeded();
+    });
+  }
 
   @override
   void dispose() {
@@ -29,11 +42,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  void _selectDefaultPaymentMethodIfNeeded() {
+    final activeMethods = userPaymentMethodService.activePaymentMethods;
+    if (activeMethods.isEmpty || selectedPaymentMethodId != null) return;
+
+    UserPaymentMethod? defaultMethod;
+    for (final paymentMethod in activeMethods) {
+      if (paymentMethod.isDefault) {
+        defaultMethod = paymentMethod;
+        break;
+      }
+    }
+
+    setState(() {
+      selectedPaymentMethodId = (defaultMethod ?? activeMethods.first).id;
+    });
+  }
+
   Future<void> confirmCheckout() async {
-    if (deliveryMethod == 'delivery' &&
-        addressController.text.trim().isEmpty) {
+    if (deliveryMethod == 'delivery' && addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresá una dirección de entrega')),
+        const SnackBar(content: Text('Ingresa una direccion de entrega')),
+      );
+      return;
+    }
+
+    final activeMethods = userPaymentMethodService.activePaymentMethods;
+    final selectedSavedPaymentMethod = _selectedPaymentMethod(activeMethods);
+
+    if (activeMethods.isNotEmpty && selectedSavedPaymentMethod == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Elegi un metodo de pago')),
       );
       return;
     }
@@ -46,14 +85,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final order = await orderService.checkout(
       deliveryAddress: deliveryAddress,
-      paymentMethod: paymentMethod,
+      paymentMethod: selectedSavedPaymentMethod == null ? paymentMethod : null,
+      paymentMethodId: selectedSavedPaymentMethod?.id,
       notes: notesController.text.trim().isEmpty
           ? null
           : notesController.text.trim(),
     );
 
     if (!mounted) return;
-
 
     if (order == null) {
       setState(() => isLoading = false);
@@ -65,18 +104,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    if(paymentMethod == "mercado_pago") {
+    final shouldOpenMercadoPago =
+        selectedSavedPaymentMethod?.isMercadoPago ??
+        paymentMethod == 'mercado_pago';
+
+    if (shouldOpenMercadoPago) {
       final paymentApi = PaymentApiService();
       final initPoint = await paymentApi.createPreference(
-        orderId: order.id, 
+        orderId: order.id,
         token: authServices.token!,
-      ); 
+      );
 
       await launchUrl(
         Uri.parse(initPoint),
-        mode : LaunchMode.externalApplication,
+        mode: LaunchMode.externalApplication,
       );
     }
+
     await cartService.loadCart();
 
     if (!mounted) return;
@@ -88,8 +132,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     Navigator.pop(context);
   }
 
-
-  @override 
+  @override
   Widget build(BuildContext context) {
     final total = cartService.total;
 
@@ -97,82 +140,104 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       backgroundColor: const Color(0xffF6F7FB),
       appBar: AppBar(
         title: const Text(
-          'Checkout', 
+          'Checkout',
           style: TextStyle(
-            color : Color.fromARGB(255, 21, 13, 239),
-            fontWeight: FontWeight.bold
+            color: Color.fromARGB(255, 21, 13, 239),
+            fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color.fromARGB(255, 24, 21, 189)),
       ),
-      body : AnimatedBuilder(
-        animation: cartService,
+      body: AnimatedBuilder(
+        animation: Listenable.merge([cartService, userPaymentMethodService]),
         builder: (context, child) {
+          final activePaymentMethods =
+              userPaymentMethodService.activePaymentMethods;
+
           return ListView(
-            padding : const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             children: [
-              _sectionTitle('Entrega'), 
+              _sectionTitle('Entrega'),
               _optionCard(
-                title : 'Envio a domicilio', 
-                subtitle : 'Recibis el pedido en tu direccion', 
-                value : 'delivery', 
-                groupValue : deliveryMethod, 
-                onChanged : (value) => {
-                  setState(() => deliveryMethod = value!)
-                }
-              ), 
+                title: 'Envio a domicilio',
+                subtitle: 'Recibis el pedido en tu direccion',
+                value: 'delivery',
+                groupValue: deliveryMethod,
+                onChanged: (value) {
+                  setState(() => deliveryMethod = value!);
+                },
+              ),
               _optionCard(
                 title: 'Retiro en tienda',
-                subtitle: 'Coordinás el retiro con el vendedor',
+                subtitle: 'Coordinas el retiro con el vendedor',
                 value: 'pickup',
                 groupValue: deliveryMethod,
                 onChanged: (value) {
                   setState(() => deliveryMethod = value!);
                 },
               ),
-
-              if(deliveryMethod == "delivery") ...[
-                const SizedBox(height: 12,), 
+              if (deliveryMethod == 'delivery') ...[
+                const SizedBox(height: 12),
                 TextField(
                   controller: addressController,
                   decoration: _inputDecoration('Direccion de entrega'),
                 ),
-              ], 
-              const SizedBox(height: 24,), 
-              _sectionTitle('Forma de pago'), 
-              _optionCard(
-                title: 'Mercado Pago',
-                subtitle: 'Tarjeta, saldo o transferencia',
-                value: 'mercado_pago',
-                groupValue: paymentMethod,
-                onChanged: (value) {
-                  setState(() => paymentMethod = value!);
-                },
-              ),
-
-              _optionCard(
-                title: 'Efectivo',
-                subtitle: 'Pagás al recibir o retirar',
-                value: 'cash',
-                groupValue: paymentMethod,
-                onChanged: (value) {
-                  setState(() => paymentMethod = value!);
-                },
-              ),
-
-              const SizedBox(height: 24,),
-
+              ],
+              const SizedBox(height: 24),
+              _sectionTitle('Forma de pago'),
+              if (userPaymentMethodService.isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (activePaymentMethods.isNotEmpty) ...[
+                ...activePaymentMethods.map(_savedPaymentCard),
+                TextButton.icon(
+                  onPressed: userPaymentMethodService.loadPaymentMethods,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar metodos'),
+                ),
+              ] else ...[
+                if (userPaymentMethodService.error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      userPaymentMethodService.error!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                _optionCard(
+                  title: 'Mercado Pago',
+                  subtitle: 'Tarjeta, saldo o transferencia',
+                  value: 'mercado_pago',
+                  groupValue: paymentMethod,
+                  onChanged: (value) {
+                    setState(() => paymentMethod = value!);
+                  },
+                ),
+                _optionCard(
+                  title: 'Efectivo',
+                  subtitle: 'Pagas al recibir o retirar',
+                  value: 'cash',
+                  groupValue: paymentMethod,
+                  onChanged: (value) {
+                    setState(() => paymentMethod = value!);
+                  },
+                ),
+              ],
+              const SizedBox(height: 24),
               TextField(
-                controller : notesController, 
-                maxLines : 3,
+                controller: notesController,
+                maxLines: 3,
                 decoration: _inputDecoration('Aclaraciones para el vendedor'),
-              ), 
-
+              ),
               const SizedBox(height: 24),
               _sectionTitle('Resumen'),
-
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: _cardDecoration(),
@@ -189,7 +254,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -213,12 +277,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ],
           );
-        }
-        ,
-      )
+        },
+      ),
     );
   }
-    
+
+  UserPaymentMethod? _selectedPaymentMethod(
+    List<UserPaymentMethod> activeMethods,
+  ) {
+    for (final paymentMethod in activeMethods) {
+      if (paymentMethod.id == selectedPaymentMethodId) {
+        return paymentMethod;
+      }
+    }
+
+    return null;
+  }
+
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -232,6 +307,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
+
   Widget _optionCard({
     required String title,
     required String subtitle,
@@ -239,16 +315,139 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required String groupValue,
     required ValueChanged<String?> onChanged,
   }) {
+    final isSelected = value == groupValue;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: _cardDecoration(),
-      child: RadioListTile<String>(
-        value: value,
-        groupValue: groupValue,
-        onChanged: onChanged,
-        activeColor: const Color(0xff5E2CA5),
-        title: Text(title),
-        subtitle: Text(subtitle),
+      child: InkWell(
+        onTap: () => onChanged(value),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: isSelected
+                    ? const Color(0xff5E2CA5)
+                    : Colors.black.withValues(alpha: 0.38),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _savedPaymentCard(UserPaymentMethod paymentMethod) {
+    final detail = paymentMethod.isTransfer
+        ? [
+            paymentMethod.displayMethod,
+            if (paymentMethod.senderAlias != null)
+              'Alias: ${paymentMethod.senderAlias}',
+            if (paymentMethod.senderCbu != null)
+              'CBU/CVU: ${paymentMethod.senderCbu}',
+          ].join(' - ')
+        : 'Tarjeta, saldo o transferencia';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: _cardDecoration(),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            selectedPaymentMethodId = paymentMethod.id;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                selectedPaymentMethodId == paymentMethod.id
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selectedPaymentMethodId == paymentMethod.id
+                    ? const Color(0xff5E2CA5)
+                    : Colors.black.withValues(alpha: 0.38),
+              ),
+              const SizedBox(width: 12),
+              Icon(
+                paymentMethod.isTransfer
+                    ? Icons.swap_horiz
+                    : Icons.account_balance_wallet_outlined,
+                color: const Color(0xff5E2CA5),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            paymentMethod.label,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (paymentMethod.isDefault)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xff5E2CA5,
+                              ).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'Default',
+                              style: TextStyle(
+                                color: Color(0xff5E2CA5),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      detail,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -300,4 +499,3 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 }
-
