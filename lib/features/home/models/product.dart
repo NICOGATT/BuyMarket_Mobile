@@ -12,6 +12,7 @@ class Product {
   final String imageUrl;
   final List<ProductMediaItem> media;
   final List<ProductAttributeValue> attributes;
+  final List<ProductVariantModel> variants;
   final int stock;
 
   const Product({
@@ -26,6 +27,7 @@ class Product {
     required this.imageUrl,
     required this.media,
     required this.attributes,
+    this.variants = const [],
     required this.stock,
   });
 
@@ -72,6 +74,7 @@ class Product {
       imageUrl: imageUrl,
       media: media,
       attributes: _parseAttributes(json),
+      variants: _parseVariants(json),
       stock: json['stock'] is int
           ? json['stock'] as int
           : int.tryParse(json['stock']?.toString() ?? '') ?? 0,
@@ -164,16 +167,56 @@ class Product {
     return '';
   }
 
+  static double _readDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static bool _readBool(dynamic value, {bool defaultValue = false}) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final normalized = value?.toString().toLowerCase().trim();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+    return defaultValue;
+  }
+
+  static List<ProductVariantModel> _parseVariants(Map<String, dynamic> json) {
+    final rawVariants = json['variants'] ??
+        json['productVariants'] ??
+        json['product_variants'] ??
+        [];
+
+    if (rawVariants is! List) return const [];
+
+    return rawVariants
+        .map((item) {
+          if (item is! Map) return null;
+          return ProductVariantModel.fromJson(
+            Map<String, dynamic>.from(item),
+          );
+        })
+        .whereType<ProductVariantModel>()
+        .where((variant) => variant.id.isNotEmpty)
+        .toList();
+  }
+
   static List<ProductAttributeValue> _parseAttributes(
     Map<String, dynamic> json,
   ) {
-    final rawAttributes = json['attributes'] ??
-        json['productAttributes'] ??
-        json['product_attributes'] ??
-        json['attributeValues'] ??
+    final rawAttributes = json['attributeValues'] ??
         json['attribute_values'] ??
         json['productAttributeValues'] ??
         json['product_attribute_values'] ??
+        json['attributes'] ??
+        json['productAttributes'] ??
+        json['product_attributes'] ??
         json['characteristics'] ??
         json['features'] ??
         [];
@@ -280,4 +323,110 @@ class ProductAttributeValue {
     required this.name,
     required this.value,
   });
+}
+
+class ProductVariantModel {
+  final String id;
+  final String? size;
+  final String? color;
+  final double price;
+  final int stock;
+  final bool isActive;
+  final List<ProductVariantAttributeModel> attributes;
+
+  const ProductVariantModel({
+    required this.id,
+    this.size,
+    this.color,
+    required this.price,
+    required this.stock,
+    required this.isActive,
+    required this.attributes,
+  });
+
+  bool get isAvailable => isActive && stock > 0;
+
+  factory ProductVariantModel.fromJson(Map<String, dynamic> json) {
+    final rawAttributes = json['attributes'] ??
+        json['attributeValues'] ??
+        json['variantAttributes'] ??
+        json['variant_attributes'] ??
+        [];
+
+    return ProductVariantModel(
+      id: Product._readString(json, ['id', 'variantId', 'variant_id']),
+      size: _emptyToNull(json['size']?.toString()),
+      color: _emptyToNull(json['color']?.toString()),
+      price: Product._readDouble(json['price']),
+      stock: Product._readInt(json['stock']),
+      isActive: Product._readBool(json['isActive'], defaultValue: true),
+      attributes: rawAttributes is List
+          ? rawAttributes
+              .map((item) {
+                if (item is! Map) return null;
+                return ProductVariantAttributeModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                );
+              })
+              .whereType<ProductVariantAttributeModel>()
+              .toList()
+          : const [],
+    );
+  }
+
+  static String? _emptyToNull(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
+}
+
+class ProductVariantAttributeModel {
+  final String attributeId;
+  final String name;
+  final String value;
+
+  const ProductVariantAttributeModel({
+    required this.attributeId,
+    required this.name,
+    required this.value,
+  });
+
+  factory ProductVariantAttributeModel.fromJson(Map<String, dynamic> json) {
+    final attribute = json['attribute'] ??
+        json['subCategoryAttribute'] ??
+        json['sub_category_attribute'] ??
+        json['attributeDefinition'];
+
+    final name = attribute is Map
+        ? (attribute['name'] ?? attribute['label'] ?? attribute['title'])
+            ?.toString()
+        : (json['name'] ?? json['attributeName'] ?? json['label'])
+            ?.toString();
+
+    final value = json['value'] ??
+        json['attributeValue'] ??
+        json['selectedValue'] ??
+        json['textValue'] ??
+        json['numberValue'] ??
+        json['booleanValue'];
+    final directAttributeId = Product._readString(
+      json,
+      ['attributeId', 'attribute_id', 'id'],
+    );
+    final nestedAttributeId = attribute is Map
+        ? Product._readString(
+            Map<String, dynamic>.from(attribute),
+            ['id', 'attributeId', 'attribute_id'],
+          )
+        : '';
+
+    return ProductVariantAttributeModel(
+      attributeId: directAttributeId.isNotEmpty
+          ? directAttributeId
+          : nestedAttributeId,
+      name: name ?? '',
+      value: value?.toString() ?? '',
+    );
+  }
 }

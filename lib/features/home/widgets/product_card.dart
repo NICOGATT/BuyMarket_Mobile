@@ -13,6 +13,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasVariants = product.variants.isNotEmpty;
+
     return GestureDetector(
       onTap: () {
         Navigator.pushNamed(
@@ -120,6 +122,10 @@ class ProductCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
+                  if (product.attributes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _AttributePreview(attributes: product.attributes),
+                  ],
 
                   const SizedBox(height: 12),
 
@@ -128,6 +134,15 @@ class ProductCard extends StatelessWidget {
 
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        if (hasVariants) {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.productDetail,
+                            arguments: product,
+                          );
+                          return;
+                        }
+
                         cartService.addProduct(product.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -138,7 +153,9 @@ class ProductCard extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.shopping_cart),
-                      label: const Text('Agregar al carrito'),
+                      label: Text(
+                        hasVariants ? 'Elegir variante' : 'Agregar al carrito',
+                      ),
                     ),
                   ),
                 ],
@@ -146,6 +163,30 @@ class ProductCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AttributePreview extends StatelessWidget {
+  final List<ProductAttributeValue> attributes;
+
+  const _AttributePreview({required this.attributes});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = attributes.take(3).map((attribute) {
+      return '${attribute.name}: ${attribute.value}';
+    }).join(' · ');
+
+    return Text(
+      preview,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Color(0xff666666),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

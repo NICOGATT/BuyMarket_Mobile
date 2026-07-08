@@ -12,6 +12,7 @@ class ProductGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasValidId = product.id.trim().isNotEmpty;
+    final hasVariants = product.variants.isNotEmpty;
     final heroTag = hasValidId
         ? 'product-${product.id}-${identityHashCode(product)}'
         : null;
@@ -145,14 +146,22 @@ class ProductGridCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    product.stock > 0
-                        ? 'Stock: ${product.stock}'
-                        : 'Sin stock',
+                    hasVariants
+                        ? 'Elegí una variante'
+                        : product.stock > 0
+                            ? 'Stock: ${product.stock}'
+                            : 'Sin stock',
                     style: TextStyle(
-                      color: product.stock > 0 ? Colors.green : Colors.red,
+                      color: hasVariants || product.stock > 0
+                          ? Colors.green
+                          : Colors.red,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (product.attributes.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    _AttributePreview(attributes: product.attributes),
+                  ],
 
                   const SizedBox(height: 8),
 
@@ -160,7 +169,7 @@ class ProductGridCard extends StatelessWidget {
                     width: double.infinity,
                     height: 36,
                     child: ElevatedButton.icon(
-                      onPressed: product.stock <= 0
+                      onPressed: !hasVariants && product.stock <= 0
                           ? null
                           : () {
                               if (!hasValidId) {
@@ -170,6 +179,15 @@ class ProductGridCard extends StatelessWidget {
                                       'No se pudo agregar este producto',
                                     ),
                                   ),
+                                );
+                                return;
+                              }
+
+                              if (hasVariants) {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.productDetail,
+                                  arguments: product,
                                 );
                                 return;
                               }
@@ -185,7 +203,7 @@ class ProductGridCard extends StatelessWidget {
                               );
                             },
                       icon: const Icon(Icons.shopping_cart, size: 18),
-                      label: const Text("Agregar"),
+                      label: Text(hasVariants ? 'Elegir' : 'Agregar'),
                     ),
                   ),
                 ],
@@ -193,6 +211,30 @@ class ProductGridCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AttributePreview extends StatelessWidget {
+  final List<ProductAttributeValue> attributes;
+
+  const _AttributePreview({required this.attributes});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = attributes.take(2).map((attribute) {
+      return '${attribute.name}: ${attribute.value}';
+    }).join(' · ');
+
+    return Text(
+      preview,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Color(0xff666666),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
       ),
     );
   }

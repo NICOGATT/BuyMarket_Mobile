@@ -117,8 +117,31 @@ class _CartScreenState extends State<CartScreen> {
                                       ),
 
                                       const SizedBox(height: 8),
+                                      if (item.variantSize?.isNotEmpty == true ||
+                                          item.variantColor?.isNotEmpty ==
+                                              true) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          [
+                                            if (item.variantSize
+                                                    ?.isNotEmpty ==
+                                                true)
+                                              'Talle: ${item.variantSize}',
+                                            if (item.variantColor
+                                                    ?.isNotEmpty ==
+                                                true)
+                                              'Color: ${item.variantColor}',
+                                          ].join(' - '),
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+
+                                      const SizedBox(height: 8),
                                       Text(
-                                        '\$${product['price']}',
+                                        '\$${item.unitPrice.toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 18,

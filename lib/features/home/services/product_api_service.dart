@@ -59,6 +59,7 @@ class ProductApiService {
     required int stock,
     String? subCategoryId,
     List<Map<String, dynamic>>? attributes,
+    List<Map<String, dynamic>>? variants,
     List<String>? mediaIds,
     required String token,
     required String seller,
@@ -71,6 +72,7 @@ class ProductApiService {
       'stock': stock,
       if (subCategoryId != null) 'subCategoryId': subCategoryId,
       if (attributes != null && attributes.isNotEmpty) 'attributes': attributes,
+      if (variants != null && variants.isNotEmpty) 'variants': variants,
       if (mediaIds != null && mediaIds.isNotEmpty) 'mediaIds': mediaIds,
       'seller': seller,
     };
@@ -92,12 +94,34 @@ class ProductApiService {
     if (response.statusCode != 200 && response.statusCode != 201) {
       debugPrint('CREATE PRODUCT STATUS: ${response.statusCode}');
       debugPrint('CREATE PRODUCT BODY: ${response.body}');
-      throw Exception('No se pudo publicar el producto');
+      throw Exception(_readErrorMessage(response.body));
     }
 
-    final data = jsonDecode(response.body);
+    final decoded = jsonDecode(response.body);
+    final data = decoded is Map<String, dynamic>
+        ? (decoded['data'] ?? decoded['value'] ?? decoded)
+        : decoded;
 
-    return Product.fromJson(data);
+    return Product.fromJson(data as Map<String, dynamic>);
+  }
+
+  String _readErrorMessage(String responseBody) {
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['error'];
+        if (message is List && message.isNotEmpty) {
+          return message.first.toString();
+        }
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString();
+        }
+      }
+    } catch (_) {
+      // Keep the user-facing fallback below.
+    }
+
+    return 'No se pudo publicar el producto';
   }
 
   Future<void> uploadProductImage({

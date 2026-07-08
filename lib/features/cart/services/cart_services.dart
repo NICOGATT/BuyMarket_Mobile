@@ -68,11 +68,16 @@ class CartService extends SafeChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addProduct(String productId) async {
+  Future<void> addProduct(
+    String productId, {
+    String? variantId,
+    int quantity = 1,
+  }) async {
     await _cartApiService.addProduct(
       token: _token,
       productId: productId,
-      quantity: 1,
+      variantId: variantId,
+      quantity: quantity,
     );
 
     await loadCart();

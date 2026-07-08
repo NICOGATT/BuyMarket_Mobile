@@ -25,8 +25,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _currentImageIndex = 0;
   bool _isLoadingDetail = false;
   String? _detailError;
+  String? _selectedSize;
+  String? _selectedColor;
 
   Product get product => _product;
+  bool get _hasVariants => product.variants.isNotEmpty;
+
+  ProductVariantModel? get _selectedVariant {
+    if (!_hasVariants) return null;
+
+    for (final variant in product.variants) {
+      final matchesSize = variant.size == _selectedSize;
+      final matchesColor = variant.color == _selectedColor;
+      if (matchesSize && matchesColor) return variant;
+    }
+
+    return _preferredVariant(product.variants);
+  }
+
+  int get _visibleStock => _selectedVariant?.stock ?? product.stock;
+  String get _visiblePrice {
+    final variant = _selectedVariant;
+    if (variant == null) return product.price;
+    final decimals = variant.price.truncateToDouble() == variant.price ? 0 : 2;
+    return variant.price.toStringAsFixed(decimals);
+  }
 
   @override
   void initState() {
@@ -35,6 +58,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _heroTag = widget.product.id.trim().isNotEmpty
         ? 'product-${widget.product.id}-${identityHashCode(widget.product)}'
         : null;
+    _initializeVariantSelection();
     _loadProductDetail();
   }
 
@@ -66,6 +90,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (!mounted) return;
       setState(() {
         _product = detail;
+        _initializeVariantSelection();
         _isLoadingDetail = false;
       });
     } catch (e) {
@@ -129,13 +154,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               },
             ),
             const SizedBox(height: 16),
-            _MainInfoSection(product: product),
+            _MainInfoSection(
+              product: product,
+              price: _visiblePrice,
+              stock: _visibleStock,
+            ),
+            if (_hasVariants) ...[
+              const SizedBox(height: 12),
+              _VariantSelectorSection(
+                sizes: _sizes,
+                colors: _colorsForSelectedSize,
+                selectedSize: _selectedSize,
+                selectedColor: _selectedColor,
+                selectedVariant: _selectedVariant,
+                onSizeChanged: _selectSize,
+                onColorChanged: _selectColor,
+              ),
+            ],
             const SizedBox(height: 12),
             _ClassificationSection(product: product),
             const SizedBox(height: 12),
             _DescriptionSection(product: product),
             const SizedBox(height: 12),
-            _AttributesSection(attributes: product.attributes),
+            _AttributesSection(
+              title: _hasVariants
+                  ? 'Caracteristicas del talle seleccionado'
+                  : 'Caracteristicas del producto',
+              attributes: _visibleAttributes,
+            ),
             const SizedBox(height: 100),
           ],
         ),
@@ -157,7 +203,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton.icon(
-              onPressed: product.stock <= 0
+              onPressed: !_hasVariants && _visibleStock <= 0
                   ? null
                   : () {
                       if (product.id.trim().isEmpty) {
@@ -169,7 +215,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         return;
                       }
 
-                      cartService.addProduct(product.id);
+                      final variant = _selectedVariant;
+                      if (_hasVariants && variant == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Seleccioná una variante disponible'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (variant != null && !variant.isAvailable) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Esta variante no está disponible'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      cartService.addProduct(
+                        product.id,
+                        variantId: variant?.id,
+                      );
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -195,6 +263,87 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
       ),
     );
+  }
+
+  void _initializeVariantSelection() {
+    final variants = product.variants;
+    if (variants.isEmpty) {
+      _selectedSize = null;
+      _selectedColor = null;
+      return;
+    }
+
+    final variant = _preferredVariant(variants);
+    _selectedSize = variant?.size;
+    _selectedColor = variant?.color;
+  }
+
+  ProductVariantModel? _preferredVariant(List<ProductVariantModel> variants) {
+    if (variants.isEmpty) return null;
+
+    for (final variant in variants) {
+      if (variant.isAvailable) return variant;
+    }
+
+    return variants.first;
+  }
+
+  List<String> get _sizes {
+    return _uniqueValues(product.variants.map((variant) => variant.size));
+  }
+
+  List<String> get _colorsForSelectedSize {
+    final variants = _selectedSize == null
+        ? product.variants
+        : product.variants.where((variant) => variant.size == _selectedSize);
+
+    return _uniqueValues(variants.map((variant) => variant.color));
+  }
+
+  List<ProductAttributeValue> get _visibleAttributes {
+    final variant = _selectedVariant;
+    if (variant == null) return product.attributes;
+
+    return variant.attributes
+        .where((attribute) =>
+            attribute.name.trim().isNotEmpty &&
+            attribute.value.trim().isNotEmpty)
+        .map(
+          (attribute) => ProductAttributeValue(
+            name: attribute.name,
+            value: attribute.value,
+          ),
+        )
+        .toList();
+  }
+
+  List<String> _uniqueValues(Iterable<String?> values) {
+    final result = <String>[];
+    for (final value in values) {
+      final trimmed = value?.trim();
+      if (trimmed == null || trimmed.isEmpty) continue;
+      if (!result.contains(trimmed)) result.add(trimmed);
+    }
+    return result;
+  }
+
+  void _selectSize(String size) {
+    setState(() {
+      _selectedSize = size;
+
+      final colors = _colorsForSelectedSize;
+      if (colors.isEmpty) {
+        _selectedColor = null;
+      } else if (_selectedColor == null || !colors.contains(_selectedColor)) {
+        _selectedColor = colors.first;
+      }
+    });
+  }
+
+  void _selectColor(String color) {
+    setState(() {
+      _selectedColor = color;
+    });
   }
 }
 
@@ -365,8 +514,14 @@ class _DetailErrorBanner extends StatelessWidget {
 
 class _MainInfoSection extends StatelessWidget {
   final Product product;
+  final String price;
+  final int stock;
 
-  const _MainInfoSection({required this.product});
+  const _MainInfoSection({
+    required this.product,
+    required this.price,
+    required this.stock,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +539,7 @@ class _MainInfoSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '\$${product.price}',
+            '\$$price',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -395,17 +550,17 @@ class _MainInfoSection extends StatelessWidget {
           Row(
             children: [
               Icon(
-                product.stock > 0
+                stock > 0
                     ? Icons.check_circle_outline
                     : Icons.cancel_outlined,
-                color: product.stock > 0 ? Colors.green : Colors.red,
+                color: stock > 0 ? Colors.green : Colors.red,
                 size: 20,
               ),
               const SizedBox(width: 8),
               Text(
-                product.stock > 0 ? 'Stock: ${product.stock}' : 'Sin stock',
+                stock > 0 ? 'Stock: $stock' : 'Sin stock',
                 style: TextStyle(
-                  color: product.stock > 0 ? Colors.green : Colors.red,
+                  color: stock > 0 ? Colors.green : Colors.red,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -413,6 +568,122 @@ class _MainInfoSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _VariantSelectorSection extends StatelessWidget {
+  final List<String> sizes;
+  final List<String> colors;
+  final String? selectedSize;
+  final String? selectedColor;
+  final ProductVariantModel? selectedVariant;
+  final ValueChanged<String> onSizeChanged;
+  final ValueChanged<String> onColorChanged;
+
+  const _VariantSelectorSection({
+    required this.sizes,
+    required this.colors,
+    required this.selectedSize,
+    required this.selectedColor,
+    required this.selectedVariant,
+    required this.onSizeChanged,
+    required this.onColorChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isUnavailable =
+        selectedVariant != null && !selectedVariant!.isAvailable;
+
+    return _DetailCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle('Elegí tu variante'),
+          if (sizes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _OptionGroup(
+              label: 'Talle',
+              options: sizes,
+              selectedValue: selectedSize,
+              onChanged: onSizeChanged,
+            ),
+          ],
+          if (colors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _OptionGroup(
+              label: 'Color',
+              options: colors,
+              selectedValue: selectedColor,
+              onChanged: onColorChanged,
+            ),
+          ],
+          if (isUnavailable) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Esta variante no está disponible',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionGroup extends StatelessWidget {
+  final String label;
+  final List<String> options;
+  final String? selectedValue;
+  final ValueChanged<String> onChanged;
+
+  const _OptionGroup({
+    required this.label,
+    required this.options,
+    required this.selectedValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xff666666),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((option) {
+            final isSelected = option == selectedValue;
+            return ChoiceChip(
+              label: Text(option),
+              selected: isSelected,
+              onSelected: (_) => onChanged(option),
+              selectedColor: const Color(0xff5E2CA5).withValues(alpha: 0.16),
+              labelStyle: TextStyle(
+                color: isSelected ? const Color(0xff5E2CA5) : Colors.black87,
+                fontWeight: FontWeight.w700,
+              ),
+              side: BorderSide(
+                color: isSelected
+                    ? const Color(0xff5E2CA5)
+                    : Colors.grey.withValues(alpha: 0.35),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
@@ -479,9 +750,13 @@ class _DescriptionSection extends StatelessWidget {
 }
 
 class _AttributesSection extends StatelessWidget {
+  final String title;
   final List<ProductAttributeValue> attributes;
 
-  const _AttributesSection({required this.attributes});
+  const _AttributesSection({
+    required this.title,
+    required this.attributes,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +764,7 @@ class _AttributesSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle('Caracteristicas del producto'),
+          _SectionTitle(title),
           const SizedBox(height: 12),
           if (attributes.isEmpty)
             const Text(

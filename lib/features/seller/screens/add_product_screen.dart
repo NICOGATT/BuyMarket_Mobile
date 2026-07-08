@@ -10,19 +10,20 @@ import '../models/sub_category.dart';
 import '../models/sub_category_attribute.dart';
 import '../services/product_media_service.dart';
 import '../services/sub_category_attribute_service.dart';
-import '../services/sub_category_service.dart';
 import '../widgets/dynamic_attribute_fields.dart';
 import '../widgets/selected_media_list.dart';
 import 'media_preview_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
   final CategoryModel selectedCategory;
+  final SubCategory selectedSubCategory;
   final List<SelectedMedia> initialMedia;
   final ProductBasicInfo basicInfo;
 
   const AddProductScreen({
     super.key,
     required this.selectedCategory,
+    required this.selectedSubCategory,
     required this.initialMedia,
     required this.basicInfo,
   });
@@ -33,51 +34,33 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _subCategoryService = SubCategoryService();
   final _attributeService = SubCategoryAttributeService();
   final _productMediaService = ProductMediaService();
 
   List<SelectedMedia> selectedMedia = [];
-  List<SubCategory> _subCategories = [];
   List<SubCategoryAttribute> _dynamicAttributes = [];
+  final List<_VariantDraft> _variants = [];
   Map<String, dynamic> attributes = {};
 
-  SubCategory? _selectedSubCategory;
-  bool _isLoadingSubCategories = true;
+  late SubCategory _selectedSubCategory;
   bool _isLoadingAttributes = false;
   bool _isPublishing = false;
-  String? _subCategoryError;
   String? _attributeError;
 
   @override
   void initState() {
     super.initState();
     selectedMedia = List.of(widget.initialMedia);
-    _loadSubCategories();
+    _selectedSubCategory = widget.selectedSubCategory;
+    _loadAttributes(widget.selectedSubCategory);
   }
 
-  Future<void> _loadSubCategories() async {
-    setState(() {
-      _isLoadingSubCategories = true;
-      _subCategoryError = null;
-    });
-
-    try {
-      final result = await _subCategoryService.getByCategory(
-        widget.selectedCategory.id,
-      );
-      if (!mounted) return;
-      setState(() {
-        _subCategories = result;
-        _isLoadingSubCategories = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _subCategoryError = e.toString();
-        _isLoadingSubCategories = false;
-      });
+  @override
+  void dispose() {
+    for (final variant in _variants) {
+      variant.dispose();
     }
+    super.dispose();
   }
 
   Future<void> _loadAttributes(SubCategory subCategory) async {
@@ -95,9 +78,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       setState(() {
         _dynamicAttributes = result;
         attributes = {
-          for (final attribute in result)
+          for (final attribute in result.where((item) => item.isProductAttribute))
             if (attribute.type == 'boolean') attribute.id: false,
         };
+        _resetVariants();
         _isLoadingAttributes = false;
       });
     } catch (e) {
@@ -107,6 +91,21 @@ class _AddProductScreenState extends State<AddProductScreen> {
         _isLoadingAttributes = false;
       });
     }
+  }
+
+  void _resetVariants() {
+    for (final variant in _variants) {
+      variant.dispose();
+    }
+    _variants.clear();
+
+    if (_sizeAttribute != null) {
+      _variants.add(_newVariantDraft());
+    }
+  }
+
+  _VariantDraft _newVariantDraft() {
+    return _VariantDraft(variantAttributes: _variantAttributes);
   }
 
   void _previewMedia(SelectedMedia media) {
@@ -138,11 +137,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedSubCategory == null) {
-      _showSnackBar('Selecciona una subcategoria');
-      return;
-    }
-
     if (selectedMedia.isEmpty) {
       _showSnackBar('Agrega al menos una imagen o video');
       return;
@@ -162,13 +156,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
         mediaIds.addAll(uploadedIds);
       }
 
-      final product = await productService.createProduct(
+      await productService.createProduct(
         title: widget.basicInfo.title,
         description: widget.basicInfo.description,
         price: widget.basicInfo.price,
         stock: widget.basicInfo.stock,
-        subCategoryId: _selectedSubCategory!.id,
+        subCategoryId: _selectedSubCategory.id,
         attributes: _buildAttributesPayload(),
+        variants: _buildVariantsPayload(),
         mediaIds: mediaIds,
         token: token,
         seller: user.id,
@@ -190,12 +185,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   List<Map<String, dynamic>> _buildAttributesPayload() {
-    return _dynamicAttributes
+    return _productAttributes
         .where((attribute) => _hasAttributeValue(attributes[attribute.id]))
         .map((attribute) {
       return {
         'attributeId': attribute.id,
-        'value': attributes[attribute.id].toString(),
+        'value': _attributeValueToString(attributes[attribute.id]),
       };
     }).toList();
   }
@@ -204,6 +199,78 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (value == null) return false;
     if (value is bool) return true;
     return value.toString().trim().isNotEmpty;
+  }
+
+  String _attributeValueToString(dynamic value) {
+    if (value is bool) return value ? 'true' : 'false';
+    return value?.toString() ?? '';
+  }
+
+  List<Map<String, dynamic>> _buildVariantsPayload() {
+    return _variants
+        .where((variant) => variant.hasAnyValue)
+        .map((variant) => {
+              'size': variant.size ?? '',
+              if (variant.color?.isNotEmpty == true) 'color': variant.color,
+              'price': double.parse(variant.priceController.text.trim()),
+              'stock': int.parse(variant.stockController.text.trim()),
+              'isActive': variant.isActive,
+              'attributes': _variantAttributes
+                  .where(
+                    (attribute) =>
+                        _hasAttributeValue(variant.attributeValues[attribute.id]),
+                  )
+                  .map(
+                    (attribute) => {
+                      'attributeId': attribute.id,
+                      'value': _attributeValueToString(
+                        variant.attributeValues[attribute.id],
+                      ),
+                    },
+                  )
+                  .toList(),
+            })
+        .toList();
+  }
+
+  SubCategoryAttribute? get _sizeAttribute {
+    for (final attribute in _dynamicAttributes) {
+      if (attribute.isVariantSize) return attribute;
+    }
+
+    return null;
+  }
+
+  SubCategoryAttribute? get _colorAttribute {
+    for (final attribute in _dynamicAttributes) {
+      if (attribute.isVariantColor) return attribute;
+    }
+
+    return null;
+  }
+
+  List<SubCategoryAttribute> get _productAttributes {
+    return _dynamicAttributes.where((attribute) {
+      return attribute.isProductAttribute;
+    }).toList();
+  }
+
+  List<SubCategoryAttribute> get _variantAttributes {
+    return _dynamicAttributes.where((attribute) {
+      return attribute.isVariantAttribute;
+    }).toList();
+  }
+
+  void _addVariant() {
+    setState(() {
+      _variants.add(_newVariantDraft());
+    });
+  }
+
+  void _removeVariant(int index) {
+    setState(() {
+      _variants.removeAt(index).dispose();
+    });
   }
 
   void _showSnackBar(String message) {
@@ -248,9 +315,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
               _productInfoSummary(),
               const SizedBox(height: 22),
               _label('Subcategoria'),
-              _buildSubCategoryField(),
+              _readOnlyValue(_selectedSubCategory.name),
               const SizedBox(height: 22),
               _buildDynamicAttributesSection(),
+              _buildVariantsSection(),
               const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
@@ -289,52 +357,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSubCategoryField() {
-    if (_isLoadingSubCategories) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_subCategoryError != null) {
-      return _errorBox(_subCategoryError!, onRetry: _loadSubCategories);
-    }
-
-    if (_subCategories.isEmpty) {
-      return _emptyBox(
-        'No hay subcategorias disponibles para esta categoria',
-        onRetry: _loadSubCategories,
-      );
-    }
-
-    return DropdownButtonFormField<SubCategory>(
-      initialValue: _selectedSubCategory,
-      isExpanded: true,
-      hint: const Text('Selecciona una subcategoria'),
-      decoration: _decoration(
-        label: 'Subcategoria',
-        icon: Icons.category_outlined,
-      ),
-      items: _subCategories
-          .map(
-            (subCategory) => DropdownMenuItem(
-              value: subCategory,
-              child: Text(
-                subCategory.name.isEmpty ? 'Sin nombre' : subCategory.name,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
-          .toList(),
-      validator: (value) => value == null ? 'Selecciona una subcategoria' : null,
-      onChanged: _isPublishing
-          ? null
-          : (value) {
-              if (value != null) {
-                _loadAttributes(value);
-              }
-            },
     );
   }
 
@@ -398,37 +420,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _emptyBox(String message, {required VoidCallback onRetry}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.info_outline,
-            color: Color(0xff5E2CA5),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(message)),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Reintentar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDynamicAttributesSection() {
-    if (_selectedSubCategory == null) {
-      return const SizedBox.shrink();
-    }
-
     if (_isLoadingAttributes) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -436,22 +428,63 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_attributeError != null) {
       return _errorBox(
         _attributeError!,
-        onRetry: () => _loadAttributes(_selectedSubCategory!),
+        onRetry: () => _loadAttributes(_selectedSubCategory),
       );
     }
 
-    if (_dynamicAttributes.isEmpty) {
+    final productAttributes = _productAttributes;
+
+    if (productAttributes.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label('Caracteristicas'),
+        _label('Caracteristicas del producto'),
         DynamicAttributeFields(
-          attributes: _dynamicAttributes,
+          attributes: productAttributes,
           values: attributes,
           onChanged: _setAttributeValue,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVariantsSection() {
+    final sizeAttribute = _sizeAttribute;
+    if (sizeAttribute == null) {
+      return const SizedBox.shrink();
+    }
+
+    final colorAttribute = _colorAttribute;
+    final variantAttributes = _variantAttributes;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        _label('Variantes'),
+        ..._variants.asMap().entries.map((entry) {
+          return _VariantFields(
+            key: ValueKey(entry.value),
+            index: entry.key,
+            variant: entry.value,
+            sizeAttribute: sizeAttribute,
+            colorAttribute: colorAttribute,
+            variantAttributes: variantAttributes,
+            canRemove: _variants.length > 1,
+            onRemove: () => _removeVariant(entry.key),
+            onChanged: () => setState(() {}),
+          );
+        }),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _isPublishing ? null : _addVariant,
+            icon: const Icon(Icons.add),
+            label: const Text('Agregar variante'),
+          ),
         ),
       ],
     );
@@ -511,21 +544,188 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  InputDecoration _decoration({
-    required String label,
-    String? hintText,
-    IconData? icon,
-  }) {
+}
+
+class _VariantDraft {
+  final TextEditingController sizeController = TextEditingController();
+  final TextEditingController colorController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController stockController = TextEditingController();
+  final Map<String, dynamic> attributeValues;
+
+  String? size;
+  String? color;
+  bool isActive = true;
+
+  _VariantDraft({
+    required List<SubCategoryAttribute> variantAttributes,
+  }) : attributeValues = {
+          for (final attribute in variantAttributes)
+            if (attribute.type == 'boolean') attribute.id: false,
+        };
+
+  bool get hasAnyValue {
+    return size?.isNotEmpty == true ||
+        color?.isNotEmpty == true ||
+        priceController.text.trim().isNotEmpty ||
+        stockController.text.trim().isNotEmpty ||
+        attributeValues.values.any((value) {
+          if (value == null) return false;
+          if (value is bool) return value;
+          return value.toString().trim().isNotEmpty;
+        });
+  }
+
+  void dispose() {
+    sizeController.dispose();
+    colorController.dispose();
+    priceController.dispose();
+    stockController.dispose();
+  }
+}
+
+class _VariantFields extends StatelessWidget {
+  final int index;
+  final _VariantDraft variant;
+  final SubCategoryAttribute sizeAttribute;
+  final SubCategoryAttribute? colorAttribute;
+  final List<SubCategoryAttribute> variantAttributes;
+  final bool canRemove;
+  final VoidCallback onRemove;
+  final VoidCallback onChanged;
+
+  const _VariantFields({
+    super.key,
+    required this.index,
+    required this.variant,
+    required this.sizeAttribute,
+    required this.colorAttribute,
+    required this.variantAttributes,
+    required this.canRemove,
+    required this.onRemove,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Variante ${index + 1}',
+                  style: const TextStyle(
+                    color: Color(0xff2D006B),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (canRemove)
+                IconButton(
+                  onPressed: onRemove,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _VariantValueField(
+            attribute: sizeAttribute,
+            value: variant.size,
+            controller: variant.sizeController,
+            fallbackLabel: 'Talle',
+            isRequired: true,
+            requiredMessage: 'Selecciona un talle',
+            onChanged: (value) {
+              variant.size = value;
+              onChanged();
+            },
+          ),
+          if (colorAttribute != null) ...[
+            const SizedBox(height: 12),
+            _VariantValueField(
+              attribute: colorAttribute!,
+              value: variant.color,
+              controller: variant.colorController,
+              fallbackLabel: 'Color',
+              isRequired: colorAttribute!.isRequired,
+              requiredMessage: 'Selecciona un color',
+              onChanged: (value) {
+                variant.color = value;
+                onChanged();
+              },
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: variant.priceController,
+            keyboardType: TextInputType.number,
+            decoration: _decoration('Precio'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Campo requerido';
+              }
+              if (double.tryParse(value.trim()) == null) {
+                return 'Ingresa un numero valido';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: variant.stockController,
+            keyboardType: TextInputType.number,
+            decoration: _decoration('Stock'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Campo requerido';
+              }
+              if (int.tryParse(value.trim()) == null) {
+                return 'Ingresa un numero entero';
+              }
+              return null;
+            },
+          ),
+          if (variantAttributes.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DynamicAttributeFields(
+              attributes: variantAttributes,
+              values: variant.attributeValues,
+              onChanged: (attribute, value) {
+                variant.attributeValues[attribute.id] = value;
+                onChanged();
+              },
+            ),
+          ],
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Activa'),
+            value: variant.isActive,
+            onChanged: (value) {
+              variant.isActive = value;
+              onChanged();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _decoration(String label) {
     return InputDecoration(
-      prefixIcon: icon == null ? null : Icon(icon),
       labelText: label,
-      hintText: hintText,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        vertical: 16,
-        horizontal: 12,
-      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -537,5 +737,76 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ),
     );
   }
+}
 
+class _VariantValueField extends StatelessWidget {
+  final SubCategoryAttribute attribute;
+  final String? value;
+  final TextEditingController controller;
+  final String fallbackLabel;
+  final bool isRequired;
+  final String requiredMessage;
+  final ValueChanged<String?> onChanged;
+
+  const _VariantValueField({
+    required this.attribute,
+    required this.value,
+    required this.controller,
+    required this.fallbackLabel,
+    required this.isRequired,
+    required this.requiredMessage,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = attribute.name.isEmpty ? fallbackLabel : attribute.name;
+
+    if (attribute.options.isNotEmpty) {
+      return DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: _decoration(label),
+        items: attribute.options
+            .map(
+              (option) => DropdownMenuItem(
+                value: option,
+                child: Text(option),
+              ),
+            )
+            .toList(),
+        validator: (value) =>
+            isRequired && (value == null || value.isEmpty)
+                ? requiredMessage
+                : null,
+        onChanged: onChanged,
+      );
+    }
+
+    return TextFormField(
+      controller: controller,
+      decoration: _decoration(label),
+      validator: (value) => isRequired && (value == null || value.trim().isEmpty)
+          ? requiredMessage
+          : null,
+      onChanged: (value) => onChanged(value.trim()),
+    );
+  }
+
+  InputDecoration _decoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: Colors.grey.withValues(alpha: 0.3),
+        ),
+      ),
+    );
+  }
 }

@@ -31,6 +31,7 @@ class CartApiService {
   Future<void> addProduct({
     required String token,
     required String productId,
+    String? variantId,
     int quantity = 1,
   }) async {
     final response = await http.post(
@@ -38,6 +39,8 @@ class CartApiService {
       headers: _headers(token),
       body: jsonEncode({
         "productId": productId,
+        if (variantId != null && variantId.trim().isNotEmpty)
+          "variantId": variantId,
         "quantity": quantity,
       }),
     );

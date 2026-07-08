@@ -2,7 +2,7 @@ import 'package:buymarket_frontend/features/home/widgets/category_grid_card.dart
 import 'package:flutter/material.dart';
 
 import '../../categories/services/category_service_instace.dart';
-import 'product_media_selection_screen.dart';
+import 'sub_category_selection_screen.dart';
 
 class CategorySelectionScreen extends StatefulWidget {
   const CategorySelectionScreen({super.key});
@@ -68,7 +68,7 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ProductMediaSelectionScreen(
+                      builder: (context) => SubCategorySelectionScreen(
                         selectedCategory: category,
                       ),
                     ),

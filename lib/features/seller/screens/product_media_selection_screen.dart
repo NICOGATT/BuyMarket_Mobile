@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/selected_media.dart';
+import '../models/sub_category.dart';
 import '../widgets/selected_media_list.dart';
 import 'media_preview_screen.dart';
 import 'product_basic_info_screen.dart';
 
 class ProductMediaSelectionScreen extends StatefulWidget {
   final CategoryModel selectedCategory;
+  final SubCategory selectedSubCategory;
 
   const ProductMediaSelectionScreen({
     super.key,
     required this.selectedCategory,
+    required this.selectedSubCategory,
   });
 
   @override
@@ -67,6 +70,7 @@ class _ProductMediaSelectionScreenState
       MaterialPageRoute(
         builder: (context) => ProductBasicInfoScreen(
           selectedCategory: widget.selectedCategory,
+          selectedSubCategory: widget.selectedSubCategory,
           selectedMedia: List.unmodifiable(_selectedMedia),
         ),
       ),
@@ -94,6 +98,9 @@ class _ProductMediaSelectionScreenState
         children: [
           _label('Categoria'),
           _readOnlyValue(widget.selectedCategory.name),
+          const SizedBox(height: 18),
+          _label('Subcategoria'),
+          _readOnlyValue(widget.selectedSubCategory.name),
           const SizedBox(height: 18),
           _label('Archivos del producto'),
           Row(

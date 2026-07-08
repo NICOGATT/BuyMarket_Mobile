@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 
 import '../models/product_basic_info.dart';
 import '../models/selected_media.dart';
+import '../models/sub_category.dart';
 import '../widgets/selected_media_list.dart';
 import 'add_product_screen.dart';
 import 'media_preview_screen.dart';
 
 class ProductBasicInfoScreen extends StatefulWidget {
   final CategoryModel selectedCategory;
+  final SubCategory selectedSubCategory;
   final List<SelectedMedia> selectedMedia;
 
   const ProductBasicInfoScreen({
     super.key,
     required this.selectedCategory,
+    required this.selectedSubCategory,
     required this.selectedMedia,
   });
 
@@ -61,6 +64,7 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
       MaterialPageRoute(
         builder: (context) => AddProductScreen(
           selectedCategory: widget.selectedCategory,
+          selectedSubCategory: widget.selectedSubCategory,
           initialMedia: widget.selectedMedia,
           basicInfo: basicInfo,
         ),
@@ -91,6 +95,9 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
           children: [
             _label('Categoria'),
             _readOnlyValue(widget.selectedCategory.name),
+            const SizedBox(height: 18),
+            _label('Subcategoria'),
+            _readOnlyValue(widget.selectedSubCategory.name),
             const SizedBox(height: 18),
             _label('Imagenes y videos cargados'),
             SelectedMediaList(
