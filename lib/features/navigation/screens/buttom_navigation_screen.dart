@@ -4,6 +4,9 @@ import '../../home/screens/home_screen.dart';
 import '../../cart/screens/cart_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../cart/services/cart_services_instances.dart';
+import '../../../core/routes/app_routes.dart';
+import '../../home/models/product.dart';
+import '../../products/screens/producto_detail_screen.dart';
 
 class BottomNavigationScreen extends StatefulWidget {
   const BottomNavigationScreen({super.key});
@@ -15,11 +18,29 @@ class BottomNavigationScreen extends StatefulWidget {
 class _BottomNavigationState extends State<BottomNavigationScreen> {
   int currentIndex = 0;
 
-  final List<Widget> screens = const [
-    HomeScreen(),
-    FavoritesScreen(),
-    CartScreen(),
-    ProfileScreen(),
+  final GlobalKey<NavigatorState> _homeNavigatorKey =
+      GlobalKey<NavigatorState>();
+
+  late final List<Widget> screens = [
+    NavigatorPopHandler<Object?>(
+      onPopWithResult: (_) => _homeNavigatorKey.currentState?.pop(),
+      child: Navigator(
+        key: _homeNavigatorKey,
+        onGenerateRoute: (settings) {
+          if (settings.name == AppRoutes.productDetail) {
+            final product = settings.arguments as Product;
+            return MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product),
+            );
+          }
+
+          return MaterialPageRoute(builder: (_) => const HomeScreen());
+        },
+      ),
+    ),
+    const FavoritesScreen(),
+    const CartScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -37,6 +58,12 @@ class _BottomNavigationState extends State<BottomNavigationScreen> {
             currentIndex: currentIndex,
             type: BottomNavigationBarType.fixed,
             onTap: (index) {
+              if (index == 0 && currentIndex == 0) {
+                _homeNavigatorKey.currentState?.popUntil(
+                  (route) => route.isFirst,
+                );
+                return;
+              }
               setState(() {
                 currentIndex = index;
               });

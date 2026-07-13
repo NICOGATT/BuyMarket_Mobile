@@ -14,6 +14,7 @@ class Product {
   final List<ProductAttributeValue> attributes;
   final List<ProductVariantModel> variants;
   final int stock;
+  final bool isFeatured;
 
   const Product({
     required this.id,
@@ -29,6 +30,7 @@ class Product {
     required this.attributes,
     this.variants = const [],
     required this.stock,
+    this.isFeatured = false,
   });
 
   List<String> get imageUrls {
@@ -78,6 +80,7 @@ class Product {
       stock: json['stock'] is int
           ? json['stock'] as int
           : int.tryParse(json['stock']?.toString() ?? '') ?? 0,
+      isFeatured: _readBool(json['isFeatured']),
     );
   }
 

@@ -11,6 +11,7 @@ import '../widgets/category_chip.dart';
 import '../../cart/services/cart_services_instances.dart';
 import '../widgets/promo_banner.dart';
 import '../widgets/product_grid.dart';
+import '../../../shared/widgets/market_header.dart';
 
 // import '../widgets/product_grid_card.dart';
 class HomeScreen extends StatefulWidget {
@@ -78,42 +79,12 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            //Search bar
-            Container(
-              color: const Color(0xff2D006B),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const CircleAvatar(child: Icon(Icons.person)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          search = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Buscar producto',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.zero,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(
-                    Icons.notifications_none,
-                    color: Colors.white,
-                    size: 30,
-                  ),
-                ],
-              ),
+            MarketHeader(
+              onSearchChanged: (value) {
+                setState(() {
+                  search = value;
+                });
+              },
             ),
 
            Container(

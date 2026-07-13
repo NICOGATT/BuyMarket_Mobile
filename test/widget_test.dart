@@ -1,31 +1,196 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:buymarket_frontend/app.dart';
+import 'package:buymarket_frontend/features/categories/screens/category_products_screen.dart';
+import 'package:buymarket_frontend/features/home/models/product.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:buymarket_frontend/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const BuyMarketApp());
+  group('Product featured parsing', () {
+    test('reads isFeatured from the API response', () {
+      final product = Product.fromJson({
+        'id': '1',
+        'title': 'Notebook',
+        'description': '',
+        'price': 100,
+        'stock': 2,
+        'category': {'id': 'technology', 'name': 'Tecnología'},
+        'isFeatured': true,
+      });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      expect(product.isFeatured, isTrue);
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('defaults isFeatured to false when it is absent', () {
+      final product = Product.fromJson({
+        'id': '1',
+        'title': 'Notebook',
+        'description': '',
+        'price': 100,
+        'stock': 2,
+        'category': {'id': 'technology', 'name': 'Tecnología'},
+      });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(product.isFeatured, isFalse);
+    });
   });
+
+  group('CategoryProductsScreen', () {
+    testWidgets('shows featured and all category products', (tester) async {
+      await _pumpScreen(
+        tester,
+        products: [
+          _product(id: '1', title: 'Notebook', isFeatured: true),
+          _product(id: '2', title: 'Teclado'),
+        ],
+      );
+
+      expect(find.text('Tecnología'), findsWidgets);
+      expect(find.byIcon(Icons.devices), findsOneWidget);
+      final titleRow = tester.widget<Row>(
+        find.ancestor(
+          of: find.byKey(const Key('category-title-text')),
+          matching: find.byType(Row),
+        ),
+      );
+      expect(titleRow.mainAxisAlignment, MainAxisAlignment.center);
+      expect(find.text('Productos destacados'), findsOneWidget);
+      expect(find.text('Todos los productos'), findsOneWidget);
+      expect(find.text('Notebook'), findsNWidgets(2));
+      expect(find.text('Teclado'), findsOneWidget);
+    });
+
+    testWidgets('filters products without matching case', (tester) async {
+      await _pumpScreen(
+        tester,
+        products: [
+          _product(id: '1', title: 'Notebook'),
+          _product(id: '2', title: 'Teclado'),
+        ],
+      );
+
+      expect(find.text('Productos destacados'), findsNothing);
+      await tester.enterText(find.byType(TextField), 'NOTE');
+      await tester.pump();
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(find.text('Teclado'), findsNothing);
+    });
+
+    testWidgets('shows empty and no-results states', (tester) async {
+      await _pumpScreen(tester, products: const []);
+      expect(find.byKey(const Key('category-title-text')), findsOneWidget);
+      expect(find.byIcon(Icons.devices), findsOneWidget);
+      expect(
+        find.text('No hay productos para esa categoria'),
+        findsOneWidget,
+      );
+
+      await _pumpScreen(
+        tester,
+        products: [_product(id: '1', title: 'Notebook')],
+      );
+      await tester.enterText(find.byType(TextField), 'teléfono');
+      await tester.pump();
+      expect(
+        find.text('No encontramos productos para tu búsqueda.'),
+        findsOneWidget,
+      );
+      expect(find.text('No hay productos para esa categoria'), findsNothing);
+    });
+
+    testWidgets('uses a generic icon for an unknown category', (tester) async {
+      await _pumpScreen(
+        tester,
+        products: const [],
+        categoryName: 'Coleccionables',
+      );
+
+      expect(find.byIcon(Icons.category), findsOneWidget);
+    });
+
+    testWidgets('loads products with the selected category id', (tester) async {
+      String? receivedCategoryId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CategoryProductsScreen(
+            categoryId: 'selected-category',
+            categoryName: 'Hogar',
+            productLoader: (categoryId) async {
+              receivedCategoryId = categoryId;
+              return const [];
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(receivedCategoryId, 'selected-category');
+      expect(find.byIcon(Icons.home), findsOneWidget);
+    });
+
+    testWidgets('retries after a loading error', (tester) async {
+      var attempts = 0;
+      Future<List<Product>> loader(String _) async {
+        attempts++;
+        if (attempts == 1) throw Exception('network');
+        return [_product(id: '1', title: 'Notebook')];
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CategoryProductsScreen(
+            categoryId: 'technology',
+            categoryName: 'Tecnología',
+            productLoader: loader,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reintentar'), findsOneWidget);
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(attempts, 2);
+    });
+  });
+}
+
+Future<void> _pumpScreen(
+  WidgetTester tester, {
+  required List<Product> products,
+  String categoryName = 'Tecnología',
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: CategoryProductsScreen(
+        key: UniqueKey(),
+        categoryId: 'technology',
+        categoryName: categoryName,
+        productLoader: (_) async => products,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Product _product({
+  required String id,
+  required String title,
+  bool isFeatured = false,
+}) {
+  return Product(
+    id: id,
+    title: title,
+    description: '',
+    category: 'Tecnología',
+    categoryId: 'technology',
+    price: '100',
+    imageUrl: '',
+    media: const [],
+    attributes: const [],
+    stock: 2,
+    isFeatured: isFeatured,
+  );
 }
