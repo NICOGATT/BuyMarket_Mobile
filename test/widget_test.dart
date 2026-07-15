@@ -79,10 +79,7 @@ void main() {
       await _pumpScreen(tester, products: const []);
       expect(find.byKey(const Key('category-title-text')), findsOneWidget);
       expect(find.byIcon(Icons.devices), findsOneWidget);
-      expect(
-        find.text('No hay productos para esa categoria'),
-        findsOneWidget,
-      );
+      expect(find.text('No hay productos para esa categoria'), findsOneWidget);
 
       await _pumpScreen(
         tester,
@@ -107,6 +104,33 @@ void main() {
       expect(find.byIcon(Icons.category), findsOneWidget);
     });
 
+    testWidgets('shows the pets image to the right of the category title', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        products: const [],
+        categoryName: '  mAsCoTaS  ',
+      );
+
+      final title = find.byKey(const Key('category-title-text'));
+      final petsImage = find.byKey(const Key('pets-category-image'));
+
+      expect(petsImage, findsOneWidget);
+      expect(find.byKey(const Key('category-title-icon')), findsNothing);
+      expect(
+        tester.getTopLeft(title).dx,
+        lessThan(tester.getTopLeft(petsImage).dx),
+      );
+
+      final image = tester.widget<Image>(petsImage);
+      expect(image.image, isA<AssetImage>());
+      expect(
+        (image.image as AssetImage).assetName,
+        'assets/images/CategoriaMascotas.png',
+      );
+    });
+
     testWidgets('loads products with the selected category id', (tester) async {
       String? receivedCategoryId;
 
@@ -126,6 +150,52 @@ void main() {
 
       expect(receivedCategoryId, 'selected-category');
       expect(find.byIcon(Icons.home), findsOneWidget);
+    });
+
+    testWidgets('only shows products from the selected category', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        products: [
+          _product(id: '1', title: 'Notebook'),
+          _product(
+            id: '2',
+            title: 'Pelota',
+            category: 'Deportes',
+            categoryId: 'sports',
+          ),
+          _product(
+            id: '3',
+            title: 'Sin categoría',
+            category: '',
+            categoryId: null,
+          ),
+        ],
+      );
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(find.text('Pelota'), findsNothing);
+      expect(find.text('Sin categoría'), findsNothing);
+    });
+
+    testWidgets('shows the empty state when no product matches the category', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        products: [
+          _product(
+            id: '1',
+            title: 'Pelota',
+            category: 'Deportes',
+            categoryId: 'sports',
+          ),
+        ],
+      );
+
+      expect(find.text('Pelota'), findsNothing);
+      expect(find.text('No hay productos para esa categoria'), findsOneWidget);
     });
 
     testWidgets('retries after a loading error', (tester) async {
@@ -178,14 +248,16 @@ Future<void> _pumpScreen(
 Product _product({
   required String id,
   required String title,
+  String category = 'Tecnología',
+  String? categoryId = 'technology',
   bool isFeatured = false,
 }) {
   return Product(
     id: id,
     title: title,
     description: '',
-    category: 'Tecnología',
-    categoryId: 'technology',
+    category: category,
+    categoryId: categoryId,
     price: '100',
     imageUrl: '',
     media: const [],
