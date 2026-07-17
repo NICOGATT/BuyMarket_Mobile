@@ -1,1 +1,2 @@
+#include "GoogleAuth.xcconfig"
 #include "Generated.xcconfig"

@@ -4,6 +4,8 @@ import '../../auth/services/auth_services.dart';
 import '../models/wallet_balance.dart';
 import '../models/wallet_transaction.dart';
 import '../models/wallet_withdrawal.dart';
+import '../models/wallet_sale.dart';
+import '../models/wallet_earnings.dart';
 import 'wallet_api_service.dart';
 
 class WalletService extends SafeChangeNotifier {
@@ -114,6 +116,21 @@ class WalletService extends SafeChangeNotifier {
       _isSubmittingWithdrawal = false;
       notifyListeners();
     }
+  }
+
+  Future<List<WalletSale>> loadSales() async {
+    return _apiService.getMySales(_token);
+  }
+
+  Future<WalletEarnings> loadEarnings({
+    required DateTime from,
+    required DateTime toExclusive,
+  }) {
+    return _apiService.getMyEarnings(
+      token: _token,
+      from: from,
+      toExclusive: toExclusive,
+    );
   }
 
   int _sortTransactionsByDateDesc(

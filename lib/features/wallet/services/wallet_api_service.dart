@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/wallet_balance.dart';
 import '../models/wallet_transaction.dart';
 import '../models/wallet_withdrawal.dart';
+import '../models/wallet_sale.dart';
+import '../models/wallet_earnings.dart';
 
 class WalletApiService {
   final String baseUrl;
@@ -51,7 +53,9 @@ class WalletApiService {
 
     return data
         .whereType<Map>()
-        .map((item) => WalletTransaction.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => WalletTransaction.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
   }
 
@@ -72,8 +76,54 @@ class WalletApiService {
 
     return data
         .whereType<Map>()
-        .map((item) => WalletWithdrawal.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => WalletWithdrawal.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
+  }
+
+  Future<List<WalletSale>> getMySales(String token) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/orders/my-sales'),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode >= 300) {
+      throw Exception(
+        _errorMessage(response, 'No se pudieron cargar tus ventas'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is! List) return [];
+
+    return data
+        .whereType<Map>()
+        .map((item) => WalletSale.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<WalletEarnings> getMyEarnings({
+    required String token,
+    required DateTime from,
+    required DateTime toExclusive,
+  }) async {
+    final uri = Uri.parse('$baseUrl/wallets/me/earnings').replace(
+      queryParameters: {
+        'from': from.toUtc().toIso8601String(),
+        'to': toExclusive.toUtc().toIso8601String(),
+      },
+    );
+    final response = await http.get(uri, headers: _headers(token));
+
+    if (response.statusCode >= 300) {
+      throw Exception(
+        _errorMessage(response, 'No se pudieron calcular tus ganancias'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    return WalletEarnings.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<WalletWithdrawal> requestWithdrawal({
@@ -87,7 +137,9 @@ class WalletApiService {
     );
 
     if (response.statusCode >= 300) {
-      throw Exception(_errorMessage(response, 'No se pudo solicitar el retiro'));
+      throw Exception(
+        _errorMessage(response, 'No se pudo solicitar el retiro'),
+      );
     }
 
     final data = jsonDecode(response.body);

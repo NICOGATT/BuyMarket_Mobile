@@ -1,0 +1,5 @@
+// OAuth client IDs are public identifiers. Replace these placeholders with
+// the clients created in the same Google Cloud project as the backend.
+GOOGLE_IOS_CLIENT_ID=REPLACE_WITH_IOS_CLIENT_ID
+GOOGLE_SERVER_CLIENT_ID=REPLACE_WITH_WEB_CLIENT_ID
+GOOGLE_REVERSED_CLIENT_ID=REPLACE_WITH_REVERSED_IOS_CLIENT_ID

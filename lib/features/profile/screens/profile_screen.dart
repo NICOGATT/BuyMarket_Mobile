@@ -149,13 +149,6 @@ class ProfileScreen extends StatelessWidget {
                       // TODO: conectar con la ruta de promociones cuando exista.
                     },
                   ),
-                  _ProfileMenuItem(
-                    icon: Icons.receipt_long,
-                    title: 'Facturacion',
-                    onTap: () {
-                      // TODO: conectar con la ruta de facturacion cuando exista.
-                    },
-                  ),
                   const SizedBox(height: 18),
                   _ProfileMenuItem(
                     icon: Icons.credit_card,

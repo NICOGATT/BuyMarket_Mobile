@@ -23,6 +23,8 @@ import 'features/profile/screens/profile_settings_screen.dart';
 import 'features/seller/screens/category_selection_screen.dart';
 import 'features/seller/screens/my_products_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
+import 'features/wallet/screens/wallet_billing_screen.dart';
+import 'features/wallet/screens/wallet_earnings_screen.dart';
 
 class BuyMarketApp extends StatelessWidget {
   const BuyMarketApp({super.key});
@@ -55,6 +57,14 @@ class BuyMarketApp extends StatelessWidget {
         AppRoutes.paymentMethodForm: (context) =>
             const PaymentMethodFormScreen(),
         AppRoutes.wallet: (context) => const AuthGuard(child: WalletScreen()),
+        AppRoutes.walletBilling: (context) =>
+            const AuthGuard(child: WalletBillingSalesScreen()),
+        AppRoutes.walletPendingWithdrawals: (context) =>
+            const AuthGuard(child: WalletPendingWithdrawalsScreen()),
+        AppRoutes.walletTransactions: (context) =>
+            const AuthGuard(child: WalletTransactionsScreen()),
+        AppRoutes.walletEarnings: (context) =>
+            const AuthGuard(child: WalletPeriodEarningsScreen()),
         AppRoutes.categories: (context) => const CategoriesScreen(),
       },
       onGenerateRoute: (settings) {

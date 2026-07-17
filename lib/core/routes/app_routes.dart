@@ -18,5 +18,9 @@ class AppRoutes {
   static const paymentMethods = '/payment-methods';
   static const paymentMethodForm = '/payment-methods/form';
   static const wallet = '/wallet';
+  static const walletBilling = '/wallet/billing';
+  static const walletPendingWithdrawals = '/wallet/pending-withdrawals';
+  static const walletTransactions = '/wallet/transactions';
+  static const walletEarnings = '/wallet/earnings';
   static const categories = '/categories';
 }

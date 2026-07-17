@@ -1,11 +1,19 @@
 import 'dart:convert';
 
 import 'package:buymarket_frontend/core/utils/safe_change_notifier.dart';
+import 'package:buymarket_frontend/features/auth/models/auth_response.dart';
 import 'package:buymarket_frontend/features/auth/models/auth_user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_api_services.dart';
+import 'google_auth_provider.dart';
 
 class AuthServices extends SafeChangeNotifier {
+  AuthServices({
+    AuthApiServices? authApiServices,
+    GoogleAuthProvider? googleAuthProvider,
+  }) : _authApiServices = authApiServices ?? AuthApiServices(),
+       _googleAuthProvider = googleAuthProvider ?? GoogleSignInAuthProvider();
+
   static const String tokenKey = 'token';
   static const String userIdKey = 'user_id';
   static const String userEmailKey = 'user_email';
@@ -13,7 +21,8 @@ class AuthServices extends SafeChangeNotifier {
   static const String userNameKey = 'user_firstName';
   static const String userlastNameKey = 'user_lastName';
   static const String userEmailVerifiedKey = 'user_email_verified';
-  final AuthApiServices _authApiServices = AuthApiServices();
+  final AuthApiServices _authApiServices;
+  final GoogleAuthProvider _googleAuthProvider;
   AuthUser? _user;
   AuthUser? get user => _user;
   bool _isLoggedIn = false;
@@ -27,16 +36,13 @@ class AuthServices extends SafeChangeNotifier {
       password: password,
     );
 
-    _token = response.token;
+    await _saveSession(response);
+  }
 
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(tokenKey, response.token);
-    await _persistUser(prefs, response.user);
-    _user = response.user;
-    _isLoggedIn = true;
-
-    notifyListeners();
+  Future<void> loginWithGoogle() async {
+    final idToken = await _googleAuthProvider.getIdToken();
+    final response = await _authApiServices.loginWithGoogle(idToken: idToken);
+    await _saveSession(response);
   }
 
   Future<void> logout() async {
@@ -55,6 +61,8 @@ class AuthServices extends SafeChangeNotifier {
     _isLoggedIn = false;
 
     notifyListeners();
+
+    await _googleAuthProvider.signOut();
   }
 
   Future<void> checkSession() async {
@@ -210,6 +218,18 @@ class AuthServices extends SafeChangeNotifier {
     await prefs.setString(userNameKey, user.firstName);
     await prefs.setString(userlastNameKey, user.lastName);
     await prefs.setBool(userEmailVerifiedKey, user.emailVerified);
+  }
+
+  Future<void> _saveSession(AuthResponse response) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(tokenKey, response.token);
+    await _persistUser(prefs, response.user);
+
+    _token = response.token;
+    _user = response.user;
+    _isLoggedIn = true;
+    notifyListeners();
   }
 
   Map<String, dynamic> _tokenPayload(String token) {

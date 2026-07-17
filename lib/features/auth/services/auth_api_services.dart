@@ -7,6 +7,10 @@ import '../../../core/config/api.config.dart';
 import 'package:flutter/material.dart';
 
 class AuthApiServices {
+  AuthApiServices({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+
   Future<AuthResponse> login({
     required String email,
     required String password,
@@ -122,6 +126,54 @@ class AuthApiServices {
     return AuthResponse.fromJson(data);
   }
 
+  Future<AuthResponse> loginWithGoogle({required String idToken}) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/google');
+
+    final response = await _client
+        .post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'idToken': idToken}),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw AuthApiException(
+        statusCode: response.statusCode,
+        message: _readErrorMessage(
+          response,
+          'No se pudo iniciar sesion con Google',
+        ),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is! Map) {
+      throw const AuthApiException(
+        message: 'El backend devolvio una respuesta invalida',
+      );
+    }
+
+    return AuthResponse.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  String _readErrorMessage(http.Response response, String fallback) {
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map) {
+        final message = data['message'];
+        if (message is String && message.trim().isNotEmpty) return message;
+        if (message is List && message.isNotEmpty) {
+          return message.first.toString();
+        }
+      }
+    } catch (_) {
+      // Use the user-facing fallback when the response is not JSON.
+    }
+
+    return fallback;
+  }
+
   Map<String, dynamic> _readUserMap(dynamic data) {
     if (data is Map) {
       return Map<String, dynamic>.from(data);
@@ -166,4 +218,14 @@ class AuthApiServices {
       return {};
     }
   }
+}
+
+class AuthApiException implements Exception {
+  const AuthApiException({this.statusCode, required this.message});
+
+  final int? statusCode;
+  final String message;
+
+  @override
+  String toString() => 'AuthApiException($statusCode, $message)';
 }

@@ -6,6 +6,7 @@ class WalletTransaction {
   final double netAmount;
   final String status;
   final DateTime? createdAt;
+  final DateTime? effectiveAt;
   final String? orderId;
 
   const WalletTransaction({
@@ -16,6 +17,7 @@ class WalletTransaction {
     required this.netAmount,
     required this.status,
     this.createdAt,
+    this.effectiveAt,
     this.orderId,
   });
 
@@ -28,6 +30,7 @@ class WalletTransaction {
       netAmount: _readDouble(json, 'netAmount'),
       status: _readString(json, 'status'),
       createdAt: _readDate(json, 'createdAt'),
+      effectiveAt: _readDate(json, 'effectiveAt'),
       orderId: _readOrderId(json['order']),
     );
   }

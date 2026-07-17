@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/routes/app_routes.dart';
 import '../models/wallet_balance.dart';
 import '../models/wallet_transaction.dart';
 import '../models/wallet_withdrawal.dart';
+import '../services/wallet_preferences.dart';
 import '../services/wallet_service_instance.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -20,13 +22,28 @@ class _WalletScreenState extends State<WalletScreen> {
   static const Color _greenColor = Color(0xff16A34A);
   static const Color _redColor = Color(0xffDC2626);
   static const Color _orangeColor = Color(0xffF97316);
+  static const WalletPreferences _preferences = WalletPreferences();
+
+  bool _isBalanceVisible = true;
 
   @override
   void initState() {
     super.initState();
+    _loadBalanceVisibility();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       walletService.loadWallet();
     });
+  }
+
+  Future<void> _loadBalanceVisibility() async {
+    final isVisible = await _preferences.loadBalanceVisibility();
+    if (mounted) setState(() => _isBalanceVisible = isVisible);
+  }
+
+  Future<void> _toggleBalanceVisibility() async {
+    final isVisible = !_isBalanceVisible;
+    setState(() => _isBalanceVisible = isVisible);
+    await _preferences.saveBalanceVisibility(isVisible);
   }
 
   Future<void> _openWithdrawalModal() async {
@@ -54,85 +71,60 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xffFAFAFC),
-        appBar: AppBar(
-          title: const Text(
-            'Billetera',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          centerTitle: false,
-          backgroundColor: Colors.white,
-          foregroundColor: _primaryColor,
-          elevation: 0,
-          bottom: const TabBar(
-            labelColor: _primaryColor,
-            unselectedLabelColor: Colors.black45,
-            indicatorColor: _accentColor,
-            indicatorWeight: 4,
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 15,
-            ),
-            tabs: [
-              Tab(text: 'Movimientos'),
-              Tab(text: 'Retiros'),
-            ],
-          ),
+    return Scaffold(
+      backgroundColor: const Color(0xffFAFAFC),
+      appBar: AppBar(
+        title: const Text(
+          'Billetera',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
         ),
-        body: SafeArea(
-          child: AnimatedBuilder(
-            animation: walletService,
-            builder: (context, child) {
-              if (walletService.isLoading) {
-                return const _LoadingState();
-              }
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        foregroundColor: _primaryColor,
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: walletService,
+          builder: (context, child) {
+            if (walletService.isLoading) return const _LoadingState();
 
-              if (walletService.error != null) {
-                return _ErrorState(
-                  message: walletService.error!,
-                  onRetry: walletService.loadWallet,
-                );
-              }
-
-              final balance = walletService.balance;
-
-              if (balance == null) {
-                return _ErrorState(
-                  message: 'Todavia no tenes una billetera activa',
-                  onRetry: walletService.loadWallet,
-                );
-              }
-
-              return Column(
-                children: [
-                  _BalanceSummary(
-                    balance: balance,
-                    onWithdrawPressed: _openWithdrawalModal,
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _TransactionList(
-                          transactions: walletService.transactions,
-                          onRefresh: walletService.loadWallet,
-                        ),
-                        _WithdrawalList(
-                          withdrawals: walletService.withdrawals,
-                          onRefresh: walletService.loadWallet,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            if (walletService.error != null) {
+              return _ErrorState(
+                message: walletService.error!,
+                onRetry: walletService.loadWallet,
               );
-            },
-          ),
+            }
+
+            final balance = walletService.balance;
+            if (balance == null) {
+              return _ErrorState(
+                message: 'Todavia no tenes una billetera activa',
+                onRetry: walletService.loadWallet,
+              );
+            }
+
+            return SingleChildScrollView(
+              child: _BalanceSummary(
+                balance: balance,
+                isBalanceVisible: _isBalanceVisible,
+                onToggleBalanceVisibility: _toggleBalanceVisibility,
+                onWithdrawPressed: _openWithdrawalModal,
+                onDepositPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.paymentMethods),
+                onBillingPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.walletBilling),
+                onPendingWithdrawalsPressed: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.walletPendingWithdrawals,
+                ),
+                onTransactionsPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.walletTransactions),
+                onEarningsPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.walletEarnings),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -141,17 +133,31 @@ class _WalletScreenState extends State<WalletScreen> {
 
 class _BalanceSummary extends StatelessWidget {
   final WalletBalance balance;
+  final bool isBalanceVisible;
+  final VoidCallback onToggleBalanceVisibility;
   final VoidCallback onWithdrawPressed;
+  final VoidCallback onDepositPressed;
+  final VoidCallback onBillingPressed;
+  final VoidCallback onPendingWithdrawalsPressed;
+  final VoidCallback onTransactionsPressed;
+  final VoidCallback onEarningsPressed;
 
   const _BalanceSummary({
     required this.balance,
+    required this.isBalanceVisible,
+    required this.onToggleBalanceVisibility,
     required this.onWithdrawPressed,
+    required this.onDepositPressed,
+    required this.onBillingPressed,
+    required this.onPendingWithdrawalsPressed,
+    required this.onTransactionsPressed,
+    required this.onEarningsPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
       child: Column(
         children: [
           Container(
@@ -206,16 +212,38 @@ class _BalanceSummary extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Saldo disponible',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Saldo disponible',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      key: const Key('wallet-balance-visibility-button'),
+                      onPressed: onToggleBalanceVisibility,
+                      tooltip: isBalanceVisible
+                          ? 'Ocultar saldo'
+                          : 'Mostrar saldo',
+                      icon: Icon(
+                        isBalanceVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
-                  _formatMoney(balance.balance),
+                  isBalanceVisible
+                      ? _formatMoney(balance.balance)
+                      : '\$ ••••••',
+                  key: const Key('wallet-available-balance'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 38,
@@ -223,21 +251,48 @@ class _BalanceSummary extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: onWithdrawPressed,
-                    icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Solicitar retiro'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _WalletScreenState._accentColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onWithdrawPressed,
+                        icon: const Icon(Icons.payments_outlined, size: 20),
+                        label: const Text('Retirar dinero'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _WalletScreenState._accentColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onDepositPressed,
+                        icon: const Icon(Icons.add_card_outlined, size: 20),
+                        label: const Text('Ingresar dinero'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white70),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -249,27 +304,27 @@ class _BalanceSummary extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.85,
+            childAspectRatio: 1.55,
             children: [
-              _MetricCard(
-                title: 'Pendiente',
-                value: _formatMoney(balance.pendingBalance),
+              _WalletOptionCard(
+                title: 'Facturación',
+                icon: Icons.receipt_long_outlined,
+                onTap: onBillingPressed,
+              ),
+              _WalletOptionCard(
+                title: 'Retiros pendientes',
                 icon: Icons.schedule_outlined,
+                onTap: onPendingWithdrawalsPressed,
               ),
-              _MetricCard(
-                title: 'Total ganado',
-                value: _formatMoney(balance.totalEarned),
+              _WalletOptionCard(
+                title: 'Movimientos',
+                icon: Icons.swap_vert,
+                onTap: onTransactionsPressed,
+              ),
+              _WalletOptionCard(
+                title: 'Ganancias',
                 icon: Icons.trending_up_outlined,
-              ),
-              _MetricCard(
-                title: 'Disponible',
-                value: _formatMoney(balance.balance),
-                icon: Icons.savings_outlined,
-              ),
-              const _MetricCard(
-                title: 'Comision',
-                value: '5%',
-                icon: Icons.percent_outlined,
+                onTap: onEarningsPressed,
               ),
             ],
           ),
@@ -279,73 +334,158 @@ class _BalanceSummary extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
+class _WalletOptionCard extends StatelessWidget {
   final String title;
-  final String value;
   final IconData icon;
+  final VoidCallback onTap;
 
-  const _MetricCard({
+  const _WalletOptionCard({
     required this.title,
-    required this.value,
     required this.icon,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xffECEEF3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xffECEEF3)),
           ),
-        ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: _WalletScreenState._primaryColor.withValues(
+                          alpha: 0.08,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: _WalletScreenState._primaryColor,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Row(
+    );
+  }
+}
+
+class WalletTransactionsScreen extends StatelessWidget {
+  const WalletTransactionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _WalletDataScreen(
+      title: 'Movimientos',
+      builder: () => _TransactionList(
+        transactions: walletService.transactions,
+        onRefresh: walletService.loadWallet,
+      ),
+    );
+  }
+}
+
+class WalletPendingWithdrawalsScreen extends StatelessWidget {
+  const WalletPendingWithdrawalsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _WalletDataScreen(
+      title: 'Retiros pendientes',
+      builder: () => _WithdrawalList(
+        withdrawals: walletService.withdrawals
+            .where((item) => isPendingWithdrawalStatus(item.status))
+            .toList(growable: false),
+        onRefresh: walletService.loadWallet,
+        emptyTitle: 'No tenes retiros pendientes',
+        emptySubtitle: 'Las nuevas solicitudes pendientes van a aparecer aca.',
+      ),
+    );
+  }
+}
+
+class WalletEarningsScreen extends StatelessWidget {
+  const WalletEarningsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return _WalletDataScreen(
+      title: 'Ganancias',
+      builder: () => ListView(
+        padding: const EdgeInsets.all(18),
         children: [
           Container(
-            width: 38,
-            height: 38,
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: _WalletScreenState._primaryColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
+              gradient: const LinearGradient(
+                colors: [
+                  _WalletScreenState._primaryDark,
+                  _WalletScreenState._primaryColor,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: Icon(
-              icon,
-              color: _WalletScreenState._primaryColor,
-              size: 21,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.black45,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
+                const Row(
+                  children: [
+                    Icon(Icons.trending_up_outlined, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text(
+                      'Total ganado',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 16),
                 Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  _formatMoney(walletService.balance!.totalEarned),
                   style: const TextStyle(
-                    color: Colors.black87,
+                    color: Colors.white,
+                    fontSize: 36,
                     fontWeight: FontWeight.w900,
-                    fontSize: 15,
                   ),
                 ),
               ],
@@ -357,14 +497,112 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
+class WalletBillingScreen extends StatelessWidget {
+  const WalletBillingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xffFAFAFC),
+      appBar: _walletSectionAppBar('Facturación'),
+      body: const SafeArea(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 58,
+                  color: _WalletScreenState._primaryColor,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Todavía no hay facturas disponibles',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Cuando haya facturas, vas a poder consultarlas desde acá.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletDataScreen extends StatelessWidget {
+  final String title;
+  final Widget Function() builder;
+
+  const _WalletDataScreen({required this.title, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xffFAFAFC),
+      appBar: _walletSectionAppBar(title),
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: walletService,
+          builder: (context, child) {
+            if (walletService.isLoading) return const _LoadingState();
+            if (walletService.error != null) {
+              return _ErrorState(
+                message: walletService.error!,
+                onRetry: walletService.loadWallet,
+              );
+            }
+            if (walletService.balance == null) {
+              return _ErrorState(
+                message: 'Todavia no tenes una billetera activa',
+                onRetry: walletService.loadWallet,
+              );
+            }
+            return builder();
+          },
+        ),
+      ),
+    );
+  }
+}
+
+AppBar _walletSectionAppBar(String title) {
+  return AppBar(
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+    backgroundColor: Colors.white,
+    foregroundColor: _WalletScreenState._primaryColor,
+    elevation: 0,
+  );
+}
+
+bool isPendingWithdrawalStatus(String status) {
+  final normalized = status.trim().toLowerCase();
+  return normalized == 'pending' ||
+      normalized == 'pendiente' ||
+      normalized == 'approved' ||
+      normalized == 'aprobado';
+}
+
 class _TransactionList extends StatelessWidget {
   final List<WalletTransaction> transactions;
   final Future<void> Function() onRefresh;
 
-  const _TransactionList({
-    required this.transactions,
-    required this.onRefresh,
-  });
+  const _TransactionList({required this.transactions, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -474,10 +712,15 @@ class _TransactionList extends StatelessWidget {
 class _WithdrawalList extends StatelessWidget {
   final List<WalletWithdrawal> withdrawals;
   final Future<void> Function() onRefresh;
+  final String emptyTitle;
+  final String emptySubtitle;
 
   const _WithdrawalList({
     required this.withdrawals,
     required this.onRefresh,
+    this.emptyTitle = 'Todavia no hay retiros',
+    this.emptySubtitle =
+        'Tus solicitudes de retiro van a aparecer en esta lista.',
   });
 
   @override
@@ -485,8 +728,8 @@ class _WithdrawalList extends StatelessWidget {
     if (withdrawals.isEmpty) {
       return _EmptyState(
         icon: Icons.payments_outlined,
-        title: 'Todavia no hay retiros',
-        subtitle: 'Tus solicitudes de retiro van a aparecer en esta lista.',
+        title: emptyTitle,
+        subtitle: emptySubtitle,
         onRefresh: onRefresh,
       );
     }
@@ -797,7 +1040,7 @@ class _WithdrawalFormState extends State<_WithdrawalForm> {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'Solicitar retiro',
+                    'Retirar dinero',
                     style: TextStyle(
                       color: _WalletScreenState._primaryColor,
                       fontSize: 24,
@@ -894,7 +1137,7 @@ class _WithdrawalFormState extends State<_WithdrawalForm> {
                             )
                           : const Icon(Icons.send_outlined),
                       label: Text(
-                        isSubmitting ? 'Enviando...' : 'Solicitar retiro',
+                        isSubmitting ? 'Enviando...' : 'Retirar dinero',
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: _WalletScreenState._accentColor,
@@ -986,10 +1229,7 @@ class _MethodChip extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w900,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.w900),
             ),
           ],
         ),
@@ -1020,11 +1260,7 @@ class _EmptyState extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 52),
-          Icon(
-            icon,
-            size: 56,
-            color: _WalletScreenState._primaryColor,
-          ),
+          Icon(icon, size: 56, color: _WalletScreenState._primaryColor),
           const SizedBox(height: 14),
           Text(
             title,
@@ -1054,10 +1290,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
 
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -1105,9 +1338,7 @@ class _LoadingState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: CircularProgressIndicator(
-        color: _WalletScreenState._primaryColor,
-      ),
+      child: CircularProgressIndicator(color: _WalletScreenState._primaryColor),
     );
   }
 }
