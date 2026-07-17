@@ -5,9 +5,8 @@ import '../../home/models/product.dart';
 import '../../home/services/product_api_service.dart';
 import '../../home/widgets/product_grid.dart';
 
-typedef CategoryProductLoader = Future<List<Product>> Function(
-  String categoryId,
-);
+typedef CategoryProductLoader =
+    Future<List<Product>> Function(String categoryId);
 
 class CategoryProductsScreen extends StatefulWidget {
   final String categoryId;
@@ -22,8 +21,7 @@ class CategoryProductsScreen extends StatefulWidget {
   });
 
   @override
-  State<CategoryProductsScreen> createState() =>
-      _CategoryProductsScreenState();
+  State<CategoryProductsScreen> createState() => _CategoryProductsScreenState();
 }
 
 class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
@@ -37,8 +35,8 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _productLoader = widget.productLoader ??
-        ProductApiService().getProductsByCategory;
+    _productLoader =
+        widget.productLoader ?? ProductApiService().getProductsByCategory;
     _loadProductsByCategory();
   }
 
@@ -61,7 +59,9 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       final products = await _productLoader(widget.categoryId);
       if (!mounted) return;
       setState(() {
-        _products = products;
+        _products = products
+            .where((product) => product.categoryId == widget.categoryId)
+            .toList();
         _isLoading = false;
       });
     } catch (_) {
@@ -149,18 +149,22 @@ class _CategoryTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPetsCategory = _isPetsCategory(categoryName);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _categoryIconForName(categoryName),
-            key: const Key('category-title-icon'),
-            color: const Color(0xff2D006B),
-            size: 30,
-          ),
-          const SizedBox(width: 10),
+          if (!isPetsCategory) ...[
+            Icon(
+              _categoryIconForName(categoryName),
+              key: const Key('category-title-icon'),
+              color: const Color(0xff2D006B),
+              size: 30,
+            ),
+            const SizedBox(width: 10),
+          ],
           Flexible(
             child: Text(
               categoryName,
@@ -175,10 +179,25 @@ class _CategoryTitle extends StatelessWidget {
               ),
             ),
           ),
+          if (isPetsCategory) ...[
+            const SizedBox(width: 10),
+            Image.asset(
+              'assets/images/CategoriaMascotas.png',
+              key: const Key('pets-category-image'),
+              width: 44,
+              height: 44,
+              fit: BoxFit.contain,
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+bool _isPetsCategory(String categoryName) {
+  return categoryName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '') ==
+      'mascotas';
 }
 
 IconData _categoryIconForName(String categoryName) {
@@ -192,8 +211,7 @@ IconData _categoryIconForName(String categoryName) {
       .replaceAll('ú', 'u')
       .replaceAll('ü', 'u');
 
-  if (normalized.contains('tecnologia') ||
-      normalized.contains('electronica')) {
+  if (normalized.contains('tecnologia') || normalized.contains('electronica')) {
     return Icons.devices;
   }
   if (normalized.contains('ropa') || normalized.contains('moda')) {
