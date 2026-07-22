@@ -36,6 +36,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _attributeService = SubCategoryAttributeService();
   final _productMediaService = ProductMediaService();
+  final _priceController = TextEditingController();
+  final _stockController = TextEditingController();
 
   List<SelectedMedia> selectedMedia = [];
   List<SubCategoryAttribute> _dynamicAttributes = [];
@@ -57,6 +59,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   @override
   void dispose() {
+    _priceController.dispose();
+    _stockController.dispose();
     for (final variant in _variants) {
       variant.dispose();
     }
@@ -78,7 +82,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
       setState(() {
         _dynamicAttributes = result;
         attributes = {
-          for (final attribute in result.where((item) => item.isProductAttribute))
+          for (final attribute in result.where(
+            (item) => item.isProductAttribute,
+          ))
             if (attribute.type == 'boolean') attribute.id: false,
         };
         _resetVariants();
@@ -111,16 +117,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
   void _previewMedia(SelectedMedia media) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => MediaPreviewScreen(media: media),
-      ),
+      MaterialPageRoute(builder: (context) => MediaPreviewScreen(media: media)),
     );
   }
 
-  void _setAttributeValue(
-    SubCategoryAttribute attribute,
-    dynamic value,
-  ) {
+  void _setAttributeValue(SubCategoryAttribute attribute, dynamic value) {
     setState(() {
       attributes[attribute.id] = value;
     });
@@ -136,6 +137,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
 
     if (!_formKey.currentState!.validate()) return;
+
+    if (_variants.isNotEmpty && !_variants.any((variant) => variant.isActive)) {
+      _showSnackBar('El producto debe tener al menos una variante activa');
+      return;
+    }
 
     if (selectedMedia.isEmpty) {
       _showSnackBar('Agrega al menos una imagen o video');
@@ -159,8 +165,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       await productService.createProduct(
         title: widget.basicInfo.title,
         description: widget.basicInfo.description,
-        price: widget.basicInfo.price,
-        stock: widget.basicInfo.stock,
+        price: _variants.isEmpty ? _priceController.text.trim() : null,
+        stock: _variants.isEmpty
+            ? int.parse(_stockController.text.trim())
+            : null,
         subCategoryId: _selectedSubCategory.id,
         attributes: _buildAttributesPayload(),
         variants: _buildVariantsPayload(),
@@ -188,11 +196,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return _productAttributes
         .where((attribute) => _hasAttributeValue(attributes[attribute.id]))
         .map((attribute) {
-      return {
-        'attributeId': attribute.id,
-        'value': _attributeValueToString(attributes[attribute.id]),
-      };
-    }).toList();
+          return {
+            'attributeId': attribute.id,
+            'value': _attributeValueToString(attributes[attribute.id]),
+          };
+        })
+        .toList();
   }
 
   bool _hasAttributeValue(dynamic value) {
@@ -209,27 +218,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
   List<Map<String, dynamic>> _buildVariantsPayload() {
     return _variants
         .where((variant) => variant.hasAnyValue)
-        .map((variant) => {
-              'size': variant.size ?? '',
-              if (variant.color?.isNotEmpty == true) 'color': variant.color,
-              'price': double.parse(variant.priceController.text.trim()),
-              'stock': int.parse(variant.stockController.text.trim()),
-              'isActive': variant.isActive,
-              'attributes': _variantAttributes
-                  .where(
-                    (attribute) =>
-                        _hasAttributeValue(variant.attributeValues[attribute.id]),
-                  )
-                  .map(
-                    (attribute) => {
-                      'attributeId': attribute.id,
-                      'value': _attributeValueToString(
-                        variant.attributeValues[attribute.id],
-                      ),
-                    },
-                  )
-                  .toList(),
-            })
+        .map(
+          (variant) => {
+            'size': variant.size ?? '',
+            if (variant.color?.isNotEmpty == true) 'color': variant.color,
+            'price': double.parse(variant.priceController.text.trim()),
+            'stock': int.parse(variant.stockController.text.trim()),
+            'isActive': variant.isActive,
+            'attributes': _variantAttributes
+                .where(
+                  (attribute) =>
+                      _hasAttributeValue(variant.attributeValues[attribute.id]),
+                )
+                .map(
+                  (attribute) => {
+                    'attributeId': attribute.id,
+                    'value': _attributeValueToString(
+                      variant.attributeValues[attribute.id],
+                    ),
+                  },
+                )
+                .toList(),
+          },
+        )
         .toList();
   }
 
@@ -274,9 +285,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -306,10 +317,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               _readOnlyValue(widget.selectedCategory.name),
               const SizedBox(height: 18),
               _label('Imagenes y videos cargados'),
-              SelectedMediaList(
-                media: selectedMedia,
-                onPreview: _previewMedia,
-              ),
+              SelectedMediaList(media: selectedMedia, onPreview: _previewMedia),
               const SizedBox(height: 22),
               _label('Datos del producto'),
               _productInfoSummary(),
@@ -318,6 +326,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               _readOnlyValue(_selectedSubCategory.name),
               const SizedBox(height: 22),
               _buildDynamicAttributesSection(),
+              _buildPricingSection(),
               _buildVariantsSection(),
               const SizedBox(height: 28),
               SizedBox(
@@ -382,39 +391,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
           const SizedBox(height: 8),
           Text(widget.basicInfo.description),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              _summaryChip(Icons.attach_money, widget.basicInfo.price),
-              _summaryChip(
-                Icons.inventory_2_outlined,
-                'Stock: ${widget.basicInfo.stock}',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xffF6F7FB),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: const Color(0xff168BEE)),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
         ],
       ),
     );
@@ -490,6 +466,75 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  Widget _buildPricingSection() {
+    if (_isLoadingAttributes || _attributeError != null) {
+      return const SizedBox.shrink();
+    }
+
+    if (_variants.isNotEmpty) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 18, bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xffEAF5FF),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'El precio y el stock del producto se calculan automáticamente '
+          'desde las variantes activas.',
+          style: TextStyle(
+            color: Color(0xff145A8D),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        _label('Precio y stock'),
+        TextFormField(
+          controller: _priceController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: _baseFieldDecoration('Precio', Icons.attach_money),
+          validator: (value) {
+            final price = double.tryParse(value?.trim() ?? '');
+            if (price == null || price <= 0) {
+              return 'Ingresa un precio mayor a cero';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _stockController,
+          keyboardType: TextInputType.number,
+          decoration: _baseFieldDecoration('Stock', Icons.inventory_2_outlined),
+          validator: (value) {
+            final stock = int.tryParse(value?.trim() ?? '');
+            if (stock == null || stock < 0) {
+              return 'Ingresa un stock válido';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _baseFieldDecoration(String label, IconData icon) {
+    return InputDecoration(
+      prefixIcon: Icon(icon),
+      labelText: label,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
   Widget _errorBox(String message, {required VoidCallback onRetry}) {
     return Container(
       width: double.infinity,
@@ -536,14 +581,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
       ),
     );
   }
-
 }
 
 class _VariantDraft {
@@ -557,12 +598,11 @@ class _VariantDraft {
   String? color;
   bool isActive = true;
 
-  _VariantDraft({
-    required List<SubCategoryAttribute> variantAttributes,
-  }) : attributeValues = {
-          for (final attribute in variantAttributes)
-            if (attribute.type == 'boolean') attribute.id: false,
-        };
+  _VariantDraft({required List<SubCategoryAttribute> variantAttributes})
+    : attributeValues = {
+        for (final attribute in variantAttributes)
+          if (attribute.type == 'boolean') attribute.id: false,
+      };
 
   bool get hasAnyValue {
     return size?.isNotEmpty == true ||
@@ -672,11 +712,9 @@ class _VariantFields extends StatelessWidget {
             keyboardType: TextInputType.number,
             decoration: _decoration('Precio'),
             validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Campo requerido';
-              }
-              if (double.tryParse(value.trim()) == null) {
-                return 'Ingresa un numero valido';
+              final price = double.tryParse(value?.trim() ?? '');
+              if (price == null || price <= 0) {
+                return 'Ingresa un precio mayor a cero';
               }
               return null;
             },
@@ -687,11 +725,9 @@ class _VariantFields extends StatelessWidget {
             keyboardType: TextInputType.number,
             decoration: _decoration('Stock'),
             validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Campo requerido';
-              }
-              if (int.tryParse(value.trim()) == null) {
-                return 'Ingresa un numero entero';
+              final stock = int.tryParse(value?.trim() ?? '');
+              if (stock == null || stock < 0) {
+                return 'Ingresa un stock válido';
               }
               return null;
             },
@@ -726,14 +762,10 @@ class _VariantFields extends StatelessWidget {
       labelText: label,
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: Colors.grey.withValues(alpha: 0.3),
-        ),
+        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
       ),
     );
   }
@@ -769,16 +801,12 @@ class _VariantValueField extends StatelessWidget {
         decoration: _decoration(label),
         items: attribute.options
             .map(
-              (option) => DropdownMenuItem(
-                value: option,
-                child: Text(option),
-              ),
+              (option) => DropdownMenuItem(value: option, child: Text(option)),
             )
             .toList(),
-        validator: (value) =>
-            isRequired && (value == null || value.isEmpty)
-                ? requiredMessage
-                : null,
+        validator: (value) => isRequired && (value == null || value.isEmpty)
+            ? requiredMessage
+            : null,
         onChanged: onChanged,
       );
     }
@@ -786,7 +814,8 @@ class _VariantValueField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       decoration: _decoration(label),
-      validator: (value) => isRequired && (value == null || value.trim().isEmpty)
+      validator: (value) =>
+          isRequired && (value == null || value.trim().isEmpty)
           ? requiredMessage
           : null,
       onChanged: (value) => onChanged(value.trim()),
@@ -798,14 +827,10 @@ class _VariantValueField extends StatelessWidget {
       labelText: label,
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: Colors.grey.withValues(alpha: 0.3),
-        ),
+        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
       ),
     );
   }

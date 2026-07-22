@@ -34,8 +34,8 @@ class ProductService extends SafeChangeNotifier {
   Future<Product> createProduct({
     required String title,
     required String description,
-    required String price,
-    required int stock,
+    String? price,
+    int? stock,
     String? subCategoryId,
     List<Map<String, dynamic>>? attributes,
     List<Map<String, dynamic>>? variants,
@@ -74,9 +74,7 @@ class ProductService extends SafeChangeNotifier {
     await loadProducts();
   }
 
-  Future<List<Product>> getMyProducts({
-    required String token,
-  }) async {
+  Future<List<Product>> getMyProducts({required String token}) async {
     return await _api.getMyProducts(token: token);
   }
 }

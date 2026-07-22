@@ -28,24 +28,18 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _stockController = TextEditingController();
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _priceController.dispose();
-    _stockController.dispose();
     super.dispose();
   }
 
   void _previewMedia(SelectedMedia media) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => MediaPreviewScreen(media: media),
-      ),
+      MaterialPageRoute(builder: (context) => MediaPreviewScreen(media: media)),
     );
   }
 
@@ -55,8 +49,6 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
     final basicInfo = ProductBasicInfo(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
-      price: _priceController.text.trim(),
-      stock: int.parse(_stockController.text.trim()),
     );
 
     Navigator.push(
@@ -122,24 +114,6 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
               maxLines: 3,
               validator: _requiredValidator,
             ),
-            const SizedBox(height: 14),
-            _input(
-              controller: _priceController,
-              label: 'Precio',
-              hintText: 'Ej: 25000',
-              icon: Icons.attach_money,
-              keyboardType: TextInputType.number,
-              validator: _numberValidator,
-            ),
-            const SizedBox(height: 14),
-            _input(
-              controller: _stockController,
-              label: 'Stock',
-              hintText: '20',
-              icon: Icons.inventory_2_outlined,
-              keyboardType: TextInputType.number,
-              validator: _integerValidator,
-            ),
             const SizedBox(height: 28),
             SizedBox(
               height: 52,
@@ -170,10 +144,7 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -221,14 +192,10 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
           vertical: 16,
           horizontal: 12,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.grey.withValues(alpha: 0.3),
-          ),
+          borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
         ),
       ),
     );
@@ -237,26 +204,6 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
   String? _requiredValidator(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Campo requerido';
-    }
-    return null;
-  }
-
-  String? _numberValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Campo requerido';
-    }
-    if (double.tryParse(value.trim()) == null) {
-      return 'Ingresa un numero valido';
-    }
-    return null;
-  }
-
-  String? _integerValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Campo requerido';
-    }
-    if (int.tryParse(value.trim()) == null) {
-      return 'Ingresa un numero entero';
     }
     return null;
   }

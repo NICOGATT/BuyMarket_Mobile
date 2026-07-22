@@ -5,12 +5,20 @@ import '../../favorites/services/favorite_services_instances.dart';
 import '../../home/models/product.dart';
 import '../../home/services/product_api_service.dart';
 
+typedef ProductDetailLoader = Future<Product> Function(String productId);
+typedef ProductCartAdder =
+    Future<void> Function(String productId, {String? variantId});
+
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
+  final ProductDetailLoader? productLoader;
+  final ProductCartAdder? cartAdder;
 
   const ProductDetailScreen({
     super.key,
     required this.product,
+    this.productLoader,
+    this.cartAdder,
   });
 
   @override
@@ -19,14 +27,15 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final PageController _pageController = PageController();
-  final ProductApiService _productApiService = ProductApiService();
+  late final ProductDetailLoader _productLoader;
+  late final ProductCartAdder _cartAdder;
   late Product _product;
   late final String? _heroTag;
   int _currentImageIndex = 0;
   bool _isLoadingDetail = false;
   String? _detailError;
   String? _selectedSize;
-  String? _selectedColor;
+  String? _selectedColorKey;
 
   Product get product => _product;
   bool get _hasVariants => product.variants.isNotEmpty;
@@ -34,13 +43,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariantModel? get _selectedVariant {
     if (!_hasVariants) return null;
 
+    ProductVariantModel? firstMatch;
     for (final variant in product.variants) {
       final matchesSize = variant.size == _selectedSize;
-      final matchesColor = variant.color == _selectedColor;
-      if (matchesSize && matchesColor) return variant;
+      final matchesColor = _variantColorKey(variant) == _selectedColorKey;
+      if (!matchesSize || !matchesColor) continue;
+      if (variant.isAvailable) return variant;
+      firstMatch ??= variant;
     }
 
-    return _preferredVariant(product.variants);
+    return firstMatch;
   }
 
   int get _visibleStock => _selectedVariant?.stock ?? product.stock;
@@ -54,6 +66,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _productLoader = widget.productLoader ?? ProductApiService().getProductById;
+    _cartAdder =
+        widget.cartAdder ??
+        (productId, {variantId}) =>
+            cartService.addProduct(productId, variantId: variantId);
     _product = widget.product;
     _heroTag = widget.product.id.trim().isNotEmpty
         ? 'product-${widget.product.id}-${identityHashCode(widget.product)}'
@@ -83,7 +100,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     });
 
     try {
-      final detail = await _productApiService.getProductById(widget.product.id);
+      final detail = await _productLoader(widget.product.id);
       debugPrint(
         'PRODUCT DETAIL attributes parsed: ${detail.attributes.length}',
       );
@@ -143,7 +160,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           children: [
             if (_isLoadingDetail) const LinearProgressIndicator(minHeight: 2),
-            if (_detailError != null) _DetailErrorBanner(message: _detailError!),
+            if (_detailError != null)
+              _DetailErrorBanner(message: _detailError!),
             _ImageCarousel(
               product: product,
               pageController: _pageController,
@@ -162,11 +180,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             if (_hasVariants) ...[
               const SizedBox(height: 12),
               _VariantSelectorSection(
-                sizes: _sizes,
-                colors: _colorsForSelectedSize,
+                sizes: _sizeOptions,
+                colors: _colorOptionsForSelectedSize,
                 selectedSize: _selectedSize,
-                selectedColor: _selectedColor,
+                selectedColor: _selectedColorKey,
                 selectedVariant: _selectedVariant,
+                hasAvailableVariant: product.variants.any(
+                  (variant) => variant.isAvailable,
+                ),
                 onSizeChanged: _selectSize,
                 onColorChanged: _selectColor,
               ),
@@ -178,7 +199,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const SizedBox(height: 12),
             _AttributesSection(
               title: _hasVariants
-                  ? 'Caracteristicas del talle seleccionado'
+                  ? 'Caracteristicas de la variante seleccionada'
                   : 'Caracteristicas del producto',
               attributes: _visibleAttributes,
             ),
@@ -203,9 +224,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton.icon(
-              onPressed: !_hasVariants && _visibleStock <= 0
+              onPressed:
+                  (_hasVariants && _selectedVariant?.isAvailable != true) ||
+                      (!_hasVariants && _visibleStock <= 0)
                   ? null
-                  : () {
+                  : () async {
                       if (product.id.trim().isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -234,11 +257,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         return;
                       }
 
-                      cartService.addProduct(
-                        product.id,
-                        variantId: variant?.id,
-                      );
+                      await _cartAdder(product.id, variantId: variant?.id);
 
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('${product.title} agregado al carrito'),
@@ -269,35 +290,65 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final variants = product.variants;
     if (variants.isEmpty) {
       _selectedSize = null;
-      _selectedColor = null;
+      _selectedColorKey = null;
       return;
     }
 
     final variant = _preferredVariant(variants);
     _selectedSize = variant?.size;
-    _selectedColor = variant?.color;
+    _selectedColorKey = variant == null ? null : _variantColorKey(variant);
   }
 
   ProductVariantModel? _preferredVariant(List<ProductVariantModel> variants) {
-    if (variants.isEmpty) return null;
-
     for (final variant in variants) {
       if (variant.isAvailable) return variant;
     }
 
-    return variants.first;
+    return null;
   }
 
-  List<String> get _sizes {
-    return _uniqueValues(product.variants.map((variant) => variant.size));
+  List<_VariantOption> get _sizeOptions {
+    final sizes = _uniqueValues(
+      product.variants.map((variant) => variant.size),
+    );
+
+    return sizes.map((size) {
+      final variants = product.variants.where(
+        (variant) => variant.size == size,
+      );
+      return _VariantOption(
+        value: size,
+        isAvailable: variants.any((variant) => variant.isAvailable),
+      );
+    }).toList();
   }
 
-  List<String> get _colorsForSelectedSize {
+  List<_ColorOption> get _colorOptionsForSelectedSize {
     final variants = _selectedSize == null
-        ? product.variants
-        : product.variants.where((variant) => variant.size == _selectedSize);
+        ? product.variants.toList()
+        : product.variants
+              .where((variant) => variant.size == _selectedSize)
+              .toList();
+    final colors = _uniqueValues(variants.map(_variantColorKey));
 
-    return _uniqueValues(variants.map((variant) => variant.color));
+    return colors.map((colorKey) {
+      final matchingVariants = variants
+          .where((variant) => _variantColorKey(variant) == colorKey)
+          .toList();
+      String? colorHex;
+      String? label;
+      for (final variant in matchingVariants) {
+        label ??= _nonEmptyValue(variant.color);
+        colorHex ??= _normalizedColorHex(variant.colorHex);
+      }
+
+      return _ColorOption(
+        value: colorKey,
+        label: label,
+        colorHex: colorHex,
+        isAvailable: matchingVariants.any((variant) => variant.isAvailable),
+      );
+    }).toList();
   }
 
   List<ProductAttributeValue> get _visibleAttributes {
@@ -305,9 +356,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (variant == null) return product.attributes;
 
     return variant.attributes
-        .where((attribute) =>
-            attribute.name.trim().isNotEmpty &&
-            attribute.value.trim().isNotEmpty)
+        .where(
+          (attribute) =>
+              attribute.name.trim().isNotEmpty &&
+              attribute.value.trim().isNotEmpty,
+        )
         .map(
           (attribute) => ProductAttributeValue(
             name: attribute.name,
@@ -330,20 +383,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   void _selectSize(String size) {
     setState(() {
       _selectedSize = size;
+      final variantsForSize = product.variants
+          .where((variant) => variant.size == size)
+          .toList();
+      final currentColorIsAvailable = variantsForSize.any(
+        (variant) =>
+            _variantColorKey(variant) == _selectedColorKey &&
+            variant.isAvailable,
+      );
 
-      final colors = _colorsForSelectedSize;
-      if (colors.isEmpty) {
-        _selectedColor = null;
-      } else if (_selectedColor == null || !colors.contains(_selectedColor)) {
-        _selectedColor = colors.first;
+      if (!currentColorIsAvailable) {
+        final preferredVariant = _preferredVariant(variantsForSize);
+        _selectedColorKey = preferredVariant == null
+            ? null
+            : _variantColorKey(preferredVariant);
       }
     });
   }
 
-  void _selectColor(String color) {
+  void _selectColor(String colorKey) {
     setState(() {
-      _selectedColor = color;
+      _selectedColorKey = colorKey;
     });
+  }
+
+  String? _variantColorKey(ProductVariantModel variant) {
+    final color = _nonEmptyValue(variant.color);
+    if (color != null) return 'name:${color.toLowerCase()}';
+
+    final colorHex = _normalizedColorHex(variant.colorHex);
+    if (colorHex != null) return 'hex:$colorHex';
+
+    return null;
   }
 }
 
@@ -469,10 +540,7 @@ class _DetailImages extends StatelessWidget {
       return pageView;
     }
 
-    return Hero(
-      tag: heroTag!,
-      child: pageView,
-    );
+    return Hero(tag: heroTag!, child: pageView);
   }
 }
 
@@ -489,11 +557,7 @@ class _DetailErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(
-            Icons.info_outline,
-            color: Color(0xffB7791F),
-            size: 20,
-          ),
+          const Icon(Icons.info_outline, color: Color(0xffB7791F), size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -550,9 +614,7 @@ class _MainInfoSection extends StatelessWidget {
           Row(
             children: [
               Icon(
-                stock > 0
-                    ? Icons.check_circle_outline
-                    : Icons.cancel_outlined,
+                stock > 0 ? Icons.check_circle_outline : Icons.cancel_outlined,
                 color: stock > 0 ? Colors.green : Colors.red,
                 size: 20,
               ),
@@ -573,11 +635,12 @@ class _MainInfoSection extends StatelessWidget {
 }
 
 class _VariantSelectorSection extends StatelessWidget {
-  final List<String> sizes;
-  final List<String> colors;
+  final List<_VariantOption> sizes;
+  final List<_ColorOption> colors;
   final String? selectedSize;
   final String? selectedColor;
   final ProductVariantModel? selectedVariant;
+  final bool hasAvailableVariant;
   final ValueChanged<String> onSizeChanged;
   final ValueChanged<String> onColorChanged;
 
@@ -587,6 +650,7 @@ class _VariantSelectorSection extends StatelessWidget {
     required this.selectedSize,
     required this.selectedColor,
     required this.selectedVariant,
+    required this.hasAvailableVariant,
     required this.onSizeChanged,
     required this.onColorChanged,
   });
@@ -594,7 +658,8 @@ class _VariantSelectorSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUnavailable =
-        selectedVariant != null && !selectedVariant!.isAvailable;
+        !hasAvailableVariant ||
+        (selectedVariant != null && !selectedVariant!.isAvailable);
 
     return _DetailCard(
       child: Column(
@@ -612,8 +677,7 @@ class _VariantSelectorSection extends StatelessWidget {
           ],
           if (colors.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _OptionGroup(
-              label: 'Color',
+            _ColorOptionGroup(
               options: colors,
               selectedValue: selectedColor,
               onChanged: onColorChanged,
@@ -623,10 +687,7 @@ class _VariantSelectorSection extends StatelessWidget {
             const SizedBox(height: 12),
             const Text(
               'Esta variante no está disponible',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700),
             ),
           ],
         ],
@@ -637,7 +698,7 @@ class _VariantSelectorSection extends StatelessWidget {
 
 class _OptionGroup extends StatelessWidget {
   final String label;
-  final List<String> options;
+  final List<_VariantOption> options;
   final String? selectedValue;
   final ValueChanged<String> onChanged;
 
@@ -665,14 +726,21 @@ class _OptionGroup extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: options.map((option) {
-            final isSelected = option == selectedValue;
+            final isSelected = option.value == selectedValue;
             return ChoiceChip(
-              label: Text(option),
+              key: Key('variant-size-${option.value}'),
+              label: Text(option.value),
               selected: isSelected,
-              onSelected: (_) => onChanged(option),
+              onSelected: option.isAvailable
+                  ? (_) => onChanged(option.value)
+                  : null,
               selectedColor: const Color(0xff5E2CA5).withValues(alpha: 0.16),
               labelStyle: TextStyle(
-                color: isSelected ? const Color(0xff5E2CA5) : Colors.black87,
+                color: !option.isAvailable
+                    ? Colors.black38
+                    : isSelected
+                    ? const Color(0xff5E2CA5)
+                    : Colors.black87,
                 fontWeight: FontWeight.w700,
               ),
               side: BorderSide(
@@ -686,6 +754,144 @@ class _OptionGroup extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ColorOptionGroup extends StatelessWidget {
+  final List<_ColorOption> options;
+  final String? selectedValue;
+  final ValueChanged<String> onChanged;
+
+  const _ColorOptionGroup({
+    required this.options,
+    required this.selectedValue,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Color',
+          style: TextStyle(
+            color: Color(0xff666666),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options.map((option) {
+            final isSelected = option.value == selectedValue;
+            final swatchColor = _parseHexColor(option.colorHex);
+            final accessibleLabel =
+                option.label ?? option.colorHex ?? 'Color disponible';
+            final widgetKey = option.label ?? option.colorHex ?? option.value;
+
+            return Semantics(
+              label: 'Color $accessibleLabel',
+              button: true,
+              selected: isSelected,
+              enabled: option.isAvailable,
+              child: Tooltip(
+                message: accessibleLabel,
+                child: ChoiceChip(
+                  key: Key('variant-color-$widgetKey'),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (swatchColor != null)
+                        Container(
+                          key: Key('variant-color-swatch-$widgetKey'),
+                          width: option.label == null ? 24 : 16,
+                          height: option.label == null ? 24 : 16,
+                          decoration: BoxDecoration(
+                            color: swatchColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black26),
+                          ),
+                        ),
+                      if (swatchColor != null && option.label != null)
+                        const SizedBox(width: 7),
+                      if (option.label != null)
+                        Text(option.label!)
+                      else if (swatchColor == null)
+                        Text(accessibleLabel),
+                    ],
+                  ),
+                  selected: isSelected,
+                  onSelected: option.isAvailable
+                      ? (_) => onChanged(option.value)
+                      : null,
+                  selectedColor: const Color(
+                    0xff5E2CA5,
+                  ).withValues(alpha: 0.16),
+                  labelStyle: TextStyle(
+                    color: !option.isAvailable
+                        ? Colors.black38
+                        : isSelected
+                        ? const Color(0xff5E2CA5)
+                        : Colors.black87,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  side: BorderSide(
+                    color: isSelected
+                        ? const Color(0xff5E2CA5)
+                        : Colors.grey.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _VariantOption {
+  final String value;
+  final bool isAvailable;
+
+  const _VariantOption({required this.value, required this.isAvailable});
+}
+
+class _ColorOption extends _VariantOption {
+  final String? label;
+  final String? colorHex;
+
+  const _ColorOption({
+    required super.value,
+    required super.isAvailable,
+    this.label,
+    this.colorHex,
+  });
+}
+
+Color? _parseHexColor(String? value) {
+  final normalized = _normalizedColorHex(value);
+  if (normalized == null) return null;
+
+  final rgb = int.parse(normalized.substring(1), radix: 16);
+  return Color(0xff000000 | rgb);
+}
+
+String? _normalizedColorHex(String? value) {
+  final normalized = value?.trim();
+  if (normalized == null ||
+      !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(normalized)) {
+    return null;
+  }
+
+  return normalized.toUpperCase();
+}
+
+String? _nonEmptyValue(String? value) {
+  final normalized = value?.trim();
+  if (normalized == null || normalized.isEmpty) return null;
+  return normalized;
 }
 
 class _ClassificationSection extends StatelessWidget {
@@ -704,7 +910,9 @@ class _ClassificationSection extends StatelessWidget {
           _InfoRow(
             icon: Icons.category_outlined,
             label: 'Categoria',
-            value: product.category.isEmpty ? 'Sin categoria' : product.category,
+            value: product.category.isEmpty
+                ? 'Sin categoria'
+                : product.category,
           ),
           const SizedBox(height: 10),
           _InfoRow(
@@ -753,10 +961,7 @@ class _AttributesSection extends StatelessWidget {
   final String title;
   final List<ProductAttributeValue> attributes;
 
-  const _AttributesSection({
-    required this.title,
-    required this.attributes,
-  });
+  const _AttributesSection({required this.title, required this.attributes});
 
   @override
   Widget build(BuildContext context) {
@@ -769,10 +974,7 @@ class _AttributesSection extends StatelessWidget {
           if (attributes.isEmpty)
             const Text(
               'Sin caracteristicas cargadas',
-              style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
             )
           else
             ...attributes.map((attribute) => _AttributeTile(attribute)),

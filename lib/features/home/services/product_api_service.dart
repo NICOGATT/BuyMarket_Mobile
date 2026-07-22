@@ -12,12 +12,9 @@ class ProductApiService {
   Future<List<Product>> getProducts() async {
     final url = Uri.parse('${ApiConfig.baseUrl}/products');
 
-    final response = await http.get(
-      url,
-      headers: const {
-        'ngrok-skip-browser-warning': 'true',
-      },
-    ).timeout(const Duration(seconds: 8));
+    final response = await http
+        .get(url, headers: const {'ngrok-skip-browser-warning': 'true'})
+        .timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       throw Exception('No se pudieron cargar los productos');
@@ -33,12 +30,9 @@ class ProductApiService {
   Future<Product> getProductById(String productId) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/products/$productId');
 
-    final response = await http.get(
-      url,
-      headers: const {
-        'ngrok-skip-browser-warning': 'true',
-      },
-    ).timeout(const Duration(seconds: 8));
+    final response = await http
+        .get(url, headers: const {'ngrok-skip-browser-warning': 'true'})
+        .timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       throw Exception('No se pudo cargar el detalle del producto');
@@ -55,8 +49,8 @@ class ProductApiService {
   Future<Product> createProduct({
     required String title,
     required String description,
-    required String price,
-    required int stock,
+    String? price,
+    int? stock,
     String? subCategoryId,
     List<Map<String, dynamic>>? attributes,
     List<Map<String, dynamic>>? variants,
@@ -65,17 +59,20 @@ class ProductApiService {
     required String seller,
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/products');
+    final parsedPrice = price != null && price.trim().isNotEmpty
+        ? double.parse(price)
+        : null;
     final body = {
       'title': title,
       'description': description,
-      'price': double.parse(price),
-      'stock': stock,
-      if (subCategoryId != null) 'subCategoryId': subCategoryId,
       if (attributes != null && attributes.isNotEmpty) 'attributes': attributes,
       if (variants != null && variants.isNotEmpty) 'variants': variants,
       if (mediaIds != null && mediaIds.isNotEmpty) 'mediaIds': mediaIds,
       'seller': seller,
     };
+    if (subCategoryId != null) body['subCategoryId'] = subCategoryId;
+    if (parsedPrice != null) body['price'] = parsedPrice;
+    if (stock != null) body['stock'] = stock;
 
     debugPrint('CREATE PRODUCT REQUEST BODY: ${jsonEncode(body)}');
 
@@ -131,10 +128,7 @@ class ProductApiService {
   }) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/products/$productId/images');
 
-    final request = http.MultipartRequest(
-      'POST',
-      url,
-    );
+    final request = http.MultipartRequest('POST', url);
 
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['ngrok-skip-browser-warning'] = 'true';
@@ -155,16 +149,19 @@ class ProductApiService {
     }
   }
 
-  Future<List<Product>> getMyProducts({
-    required String token,
-  }) async {
+  Future<List<Product>> getMyProducts({required String token}) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/products/my-products');
 
-    final response = await http.get(url, headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
-    }).timeout(const Duration(seconds: 8));
+    final response = await http
+        .get(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       throw Exception('No se pudieron cargar los productos');
@@ -184,9 +181,7 @@ class ProductApiService {
 
     final response = await http.get(
       url,
-      headers: const {
-        'ngrok-skip-browser-warning': 'true',
-      },
+      headers: const {'ngrok-skip-browser-warning': 'true'},
     );
 
     if (response.statusCode != 200) {

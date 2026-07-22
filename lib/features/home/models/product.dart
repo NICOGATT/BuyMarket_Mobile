@@ -332,6 +332,7 @@ class ProductVariantModel {
   final String id;
   final String? size;
   final String? color;
+  final String? colorHex;
   final double price;
   final int stock;
   final bool isActive;
@@ -341,6 +342,7 @@ class ProductVariantModel {
     required this.id,
     this.size,
     this.color,
+    this.colorHex,
     required this.price,
     required this.stock,
     required this.isActive,
@@ -360,6 +362,9 @@ class ProductVariantModel {
       id: Product._readString(json, ['id', 'variantId', 'variant_id']),
       size: _emptyToNull(json['size']?.toString()),
       color: _emptyToNull(json['color']?.toString()),
+      colorHex: _emptyToNull(
+        (json['colorHex'] ?? json['color_hex'])?.toString(),
+      ),
       price: Product._readDouble(json['price']),
       stock: Product._readInt(json['stock']),
       isActive: Product._readBool(json['isActive'], defaultValue: true),
