@@ -1,5 +1,7 @@
 // import 'package:buymarket_frontend/features/home/screens/home_screen.dart';
 import 'package:buymarket_frontend/features/categories/screens/categories_screen.dart';
+import 'package:buymarket_frontend/features/coupons/screens/coupons_screen.dart';
+import 'package:buymarket_frontend/features/plans/screens/plans_screen.dart';
 
 import 'features/adresses/screens/addresses_screen.dart';
 import 'features/adresses/screens/add_address_screen.dart';
@@ -19,12 +21,14 @@ import 'features/checkout/screens/checkout_screen.dart';
 import 'core/guards/auth_guard.dart';
 import 'features/auth/screens/auth_welcome_screen.dart';
 import 'features/auth/screens/register_screen.dart';
+import 'features/auth/screens/startup_video_screen.dart';
 import 'features/profile/screens/profile_settings_screen.dart';
 import 'features/seller/screens/category_selection_screen.dart';
 import 'features/seller/screens/my_products_screen.dart';
 import 'features/wallet/screens/wallet_screen.dart';
 import 'features/wallet/screens/wallet_billing_screen.dart';
 import 'features/wallet/screens/wallet_earnings_screen.dart';
+import 'core/theme/app_theme.dart';
 
 class BuyMarketApp extends StatelessWidget {
   const BuyMarketApp({super.key});
@@ -34,17 +38,20 @@ class BuyMarketApp extends StatelessWidget {
     return MaterialApp(
       title: 'Buy Market',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.deepPurple),
-      initialRoute: AppRoutes.home,
+      theme: AppTheme.light,
+      builder: (context, child) =>
+          AppGradientBackground(child: child ?? const SizedBox.shrink()),
+      initialRoute: AppRoutes.startup,
       routes: {
+        AppRoutes.startup: (context) => const StartupVideoScreen(),
+        AppRoutes.authWelcome: (context) => const AuthWelcomeScreen(),
         AppRoutes.home: (context) => const BottomNavigationScreen(),
         AppRoutes.cart: (context) => const CartScreen(),
         AppRoutes.login: (context) => const LoginScreen(),
         AppRoutes.favorites: (context) => const FavoritesScreen(),
-        AppRoutes.profile: (context) => const AuthGuard(child: ProfileScreen()),
+        AppRoutes.profile: (context) => const ProfileScreen(),
         AppRoutes.checkout: (context) =>
             const AuthGuard(child: CheckoutScreen()),
-        AppRoutes.authWelcome: (context) => const AuthWelcomeScreen(),
         AppRoutes.bottomNavigation: (context) => const BottomNavigationScreen(),
         AppRoutes.register: (context) => const RegisterScreen(),
         AppRoutes.myOrders: (context) => const MyOrdersScreen(),
@@ -66,6 +73,8 @@ class BuyMarketApp extends StatelessWidget {
         AppRoutes.walletEarnings: (context) =>
             const AuthGuard(child: WalletPeriodEarningsScreen()),
         AppRoutes.categories: (context) => const CategoriesScreen(),
+        AppRoutes.coupons: (context) => const CouponsScreen(),
+        AppRoutes.plans: (context) => const PlansScreen(),
       },
       onGenerateRoute: (settings) {
         if (settings.name == AppRoutes.productDetail) {

@@ -72,7 +72,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Billetera',
@@ -503,7 +503,7 @@ class WalletBillingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: _walletSectionAppBar('Facturación'),
       body: const SafeArea(
         child: Center(
@@ -554,7 +554,7 @@ class _WalletDataScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: _walletSectionAppBar(title),
       body: SafeArea(
         child: AnimatedBuilder(

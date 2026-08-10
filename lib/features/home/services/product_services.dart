@@ -36,7 +36,8 @@ class ProductService extends SafeChangeNotifier {
     required String description,
     String? price,
     int? stock,
-    String? subCategoryId,
+    required String subCategoryId,
+    String? brandId,
     List<Map<String, dynamic>>? attributes,
     List<Map<String, dynamic>>? variants,
     List<String>? mediaIds,
@@ -49,6 +50,7 @@ class ProductService extends SafeChangeNotifier {
       price: price,
       stock: stock,
       subCategoryId: subCategoryId,
+      brandId: brandId,
       attributes: attributes,
       variants: variants,
       mediaIds: mediaIds,
@@ -76,5 +78,14 @@ class ProductService extends SafeChangeNotifier {
 
   Future<List<Product>> getMyProducts({required String token}) async {
     return await _api.getMyProducts(token: token);
+  }
+
+  Future<void> deleteProduct({
+    required String productId,
+    required String token,
+  }) async {
+    await _api.deleteProduct(productId: productId, token: token);
+    _products.removeWhere((product) => product.id == productId);
+    notifyListeners();
   }
 }

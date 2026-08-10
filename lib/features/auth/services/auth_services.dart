@@ -20,7 +20,9 @@ class AuthServices extends SafeChangeNotifier {
   static const String userRoleKey = 'user_role';
   static const String userNameKey = 'user_firstName';
   static const String userlastNameKey = 'user_lastName';
+  static const String userPhoneKey = 'user_phone';
   static const String userEmailVerifiedKey = 'user_email_verified';
+  static const String userPhoneVerifiedKey = 'user_phone_verified';
   final AuthApiServices _authApiServices;
   final GoogleAuthProvider _googleAuthProvider;
   AuthUser? _user;
@@ -54,7 +56,9 @@ class AuthServices extends SafeChangeNotifier {
     await prefs.remove(userRoleKey);
     await prefs.remove(userNameKey);
     await prefs.remove(userlastNameKey);
+    await prefs.remove(userPhoneKey);
     await prefs.remove(userEmailVerifiedKey);
+    await prefs.remove(userPhoneVerifiedKey);
 
     _user = null;
     _token = null;
@@ -75,7 +79,9 @@ class AuthServices extends SafeChangeNotifier {
     final userRole = prefs.getString(userRoleKey);
     final userName = prefs.getString(userNameKey);
     final userLastName = prefs.getString(userlastNameKey);
+    final userPhone = prefs.getString(userPhoneKey);
     final userEmailVerified = prefs.getBool(userEmailVerifiedKey);
+    final userPhoneVerified = prefs.getBool(userPhoneVerifiedKey);
     if (token == null ||
         userId == null ||
         userEmail == null ||
@@ -94,10 +100,14 @@ class AuthServices extends SafeChangeNotifier {
       if (userName != null && userName.trim().isNotEmpty) 'firstName': userName,
       if (userLastName != null && userLastName.trim().isNotEmpty)
         'lastName': userLastName,
+      if (userPhone != null && userPhone.trim().isNotEmpty) 'phone': userPhone,
     };
 
     if (userEmailVerified != null) {
       restoredUserJson['emailVerified'] = userEmailVerified;
+    }
+    if (userPhoneVerified != null) {
+      restoredUserJson['phoneVerified'] = userPhoneVerified;
     }
 
     _user = AuthUser.fromJson(restoredUserJson);
@@ -170,6 +180,69 @@ class AuthServices extends SafeChangeNotifier {
     return mergedUser;
   }
 
+  Future<AuthUser> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+  }) async {
+    final currentToken = _token;
+    final currentUser = _user;
+    if (!_isLoggedIn || currentToken == null || currentUser == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final updatedUser = await _authApiServices.updateUser(
+      token: currentToken,
+      userId: currentUser.id,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+    );
+    final emailChanged = currentUser.email.toLowerCase() != email.toLowerCase();
+    final mergedUser = _mergeUser(currentUser, updatedUser).copyWith(
+      emailVerified: emailChanged ? false : currentUser.emailVerified,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await _persistUser(prefs, mergedUser);
+
+    _user = mergedUser;
+    notifyListeners();
+    return mergedUser;
+  }
+
+  Future<String> sendEmailVerificationCode() async {
+    final currentToken = _token;
+    if (!_isLoggedIn || currentToken == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    return _authApiServices.sendEmailVerificationCode(token: currentToken);
+  }
+
+  Future<String> verifyEmail(String code) async {
+    final currentToken = _token;
+    final currentUser = _user;
+    if (!_isLoggedIn || currentToken == null || currentUser == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final result = await _authApiServices.verifyEmail(
+      token: currentToken,
+      code: code,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    if (result.token?.trim().isNotEmpty == true) {
+      _token = result.token;
+      await prefs.setString(tokenKey, result.token!);
+    }
+
+    final verifiedUser = currentUser.copyWith(emailVerified: true);
+    await _persistUser(prefs, verifiedUser);
+    _user = verifiedUser;
+    notifyListeners();
+    return result.message;
+  }
+
   Future<AuthUser> _completeUserFromUsersIfNeeded({
     required String token,
     required AuthUser user,
@@ -207,7 +280,11 @@ class AuthServices extends SafeChangeNotifier {
       lastName: refreshedUser.lastName.isNotEmpty
           ? refreshedUser.lastName
           : currentUser.lastName,
+      phone: refreshedUser.phone.isNotEmpty
+          ? refreshedUser.phone
+          : currentUser.phone,
       emailVerified: refreshedUser.emailVerified || currentUser.emailVerified,
+      phoneVerified: refreshedUser.phoneVerified || currentUser.phoneVerified,
     );
   }
 
@@ -217,7 +294,9 @@ class AuthServices extends SafeChangeNotifier {
     await prefs.setString(userRoleKey, user.role);
     await prefs.setString(userNameKey, user.firstName);
     await prefs.setString(userlastNameKey, user.lastName);
+    await prefs.setString(userPhoneKey, user.phone);
     await prefs.setBool(userEmailVerifiedKey, user.emailVerified);
+    await prefs.setBool(userPhoneVerifiedKey, user.phoneVerified);
   }
 
   Future<void> _saveSession(AuthResponse response) async {

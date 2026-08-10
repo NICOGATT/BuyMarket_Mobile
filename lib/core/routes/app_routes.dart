@@ -1,12 +1,13 @@
 class AppRoutes {
-  static const home = '/';
+  static const startup = '/startup';
+  static const authWelcome = '/';
+  static const home = '/home';
   static const login = '/login';
   static const checkout = '/checkout';
   static const productDetail = '/product-detail';
   static const cart = '/cart';
   static const profile = '/profile';
   static const favorites = '/favorites';
-  static const authWelcome = '/auth-welcome';
   static const bottomNavigation = '/bottom-navigation';
   static const register = '/register';
   static const myOrders = '/my-orders';
@@ -23,4 +24,6 @@ class AppRoutes {
   static const walletTransactions = '/wallet/transactions';
   static const walletEarnings = '/wallet/earnings';
   static const categories = '/categories';
+  static const coupons = '/coupons';
+  static const plans = '/plans';
 }

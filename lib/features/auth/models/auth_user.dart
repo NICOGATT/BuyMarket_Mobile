@@ -4,7 +4,9 @@ class AuthUser {
   final String role;
   final String firstName;
   final String lastName;
+  final String phone;
   final bool emailVerified;
+  final bool phoneVerified;
 
   AuthUser({
     required this.id,
@@ -12,10 +14,35 @@ class AuthUser {
     required this.role,
     required this.firstName,
     required this.lastName,
+    this.phone = '',
     this.emailVerified = false,
+    this.phoneVerified = false,
   });
 
   bool get isEmailVerified => emailVerified;
+  bool get isPhoneVerified => phoneVerified;
+
+  AuthUser copyWith({
+    String? id,
+    String? email,
+    String? role,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    bool? emailVerified,
+    bool? phoneVerified,
+  }) {
+    return AuthUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      phone: phone ?? this.phone,
+      emailVerified: emailVerified ?? this.emailVerified,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
+    );
+  }
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final userJson = _userJson(json);
@@ -52,9 +79,18 @@ class AuthUser {
       role: userJson['role']?.toString() ?? 'user',
       firstName: firstName.isNotEmpty ? firstName : fallbackName.$1,
       lastName: lastName.isNotEmpty ? lastName : fallbackName.$2,
+      phone: _readStringDeep(userJson, [
+        'phone',
+        'phoneNumber',
+        'phone_number',
+        'telefono',
+      ]),
       emailVerified:
           userJson['emailVerified'] == true ||
           userJson['isEmailVerified'] == true,
+      phoneVerified:
+          userJson['phoneVerified'] == true ||
+          userJson['isPhoneVerified'] == true,
     );
   }
 

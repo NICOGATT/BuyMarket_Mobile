@@ -8,13 +8,19 @@ import '../services/auth_api_services.dart';
 import '../services/auth_services.dart';
 import '../services/auth_services_instance.dart';
 import '../services/google_auth_provider.dart';
+import 'register_screen.dart';
 
 enum _LoginMethod { password, google }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.authService});
+  const LoginScreen({
+    super.key,
+    this.authService,
+    this.returnOnSuccess = false,
+  });
 
   final AuthServices? authService;
+  final bool returnOnSuccess;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -45,11 +51,15 @@ class _LoginScreenState extends State<LoginScreen> {
       await authenticate();
       if (!mounted) return;
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        AppRoutes.bottomNavigation,
-        (route) => false,
-      );
+      if (widget.returnOnSuccess) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.bottomNavigation,
+          (route) => false,
+        );
+      }
     } on GoogleAuthFailure catch (error) {
       if (error.type != GoogleAuthFailureType.canceled) {
         _showLoginError(_googleErrorMessage(error));
@@ -114,13 +124,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final isBusy = _loadingMethod != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xffFBF5FF),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
               Container(
-                height: 150,
+                height: 130,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: const Color(0xff27174E),
@@ -135,40 +145,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Center(
                   child: Image.asset(
                     'assets/images/BuyMarketLogo2.png',
-                    height: 200,
+                    height: 124,
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
-              const SizedBox(height: 34),
-              const Text(
-                'Ingresá a tu cuenta',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 30),
-              Image.asset(
-                'assets/images/tarjeta.png',
-                height: 100,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 40),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 30),
+                padding: const EdgeInsets.fromLTRB(26, 22, 26, 14),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'E-mail o teléfono',
+                      'Ingresá a tu cuenta',
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 30,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    Image.asset(
+                      'assets/images/tarjeta.png',
+                      height: 72,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 20),
                     TextField(
                       key: const Key('login-email-field'),
                       controller: emailController,
@@ -178,15 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: 'Ingresá tu email',
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Contraseña',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 18),
                     TextField(
                       key: const Key('login-password-field'),
                       controller: passwordController,
@@ -196,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: 'Ingresá tu contraseña',
                       ),
                     ),
-                    const SizedBox(height: 34),
+                    const SizedBox(height: 22),
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -232,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 18),
                     Row(
                       children: [
                         Expanded(
@@ -254,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 18),
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -300,37 +292,60 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: TextButton(
-                        onPressed: isBusy ? null : () {},
-                        child: const Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            color: Color(0xff168BEE),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: TextButton(
-                        onPressed: isBusy
-                            ? null
-                            : () => Navigator.pushNamed(
-                                context,
-                                AppRoutes.register,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: TextButton(
+                            onPressed: isBusy ? null : () {},
+                            child: const Text(
+                              '¿Olvidaste tu contraseña?',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xff168BEE),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
                               ),
-                        child: const Text(
-                          'Crear cuenta',
-                          style: TextStyle(
-                            color: Color(0xff2D006B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
+                        Flexible(
+                          child: TextButton(
+                            onPressed: isBusy
+                                ? null
+                                : () async {
+                                    if (widget.returnOnSuccess) {
+                                      final authenticated =
+                                          await Navigator.push<bool>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const RegisterScreen(
+                                            returnOnSuccess: true,
+                                          ),
+                                        ),
+                                      );
+                                      if (authenticated == true &&
+                                          context.mounted) {
+                                        Navigator.pop(context, true);
+                                      }
+                                    } else {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.register,
+                                      );
+                                    }
+                                  },
+                            child: const Text(
+                              'Crear cuenta',
+                              style: TextStyle(
+                                color: Color(0xff2D006B),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

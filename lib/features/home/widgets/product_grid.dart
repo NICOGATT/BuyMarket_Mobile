@@ -3,17 +3,15 @@ import 'package:flutter/material.dart';
 import '../models/product.dart';
 import './product_grid_card.dart';
 
-class ProductGrid extends StatelessWidget{
+class ProductGrid extends StatelessWidget {
   final List<Product> products;
+  final ValueChanged<Product>? onDelete;
 
-  const ProductGrid({
-    super.key, 
-    required this.products,
-  }); 
+  const ProductGrid({super.key, required this.products, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
-    if(products.isEmpty) {
+    if (products.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(40),
@@ -30,20 +28,23 @@ class ProductGrid extends StatelessWidget{
       );
     }
     return GridView.builder(
-      itemCount : products.length, 
+      itemCount: products.length,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, 
-        mainAxisSpacing: 14, 
-        crossAxisSpacing: 14, 
-        childAspectRatio: 0.50
+        crossAxisCount: 2,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        mainAxisExtent: 350,
       ),
-      itemBuilder : (context, index) {
-        final product = products[index]; 
+      itemBuilder: (context, index) {
+        final product = products[index];
 
-        return ProductGridCard(product: product);
-      }
+        return ProductGridCard(
+          product: product,
+          onDelete: onDelete == null ? null : () => onDelete!(product),
+        );
+      },
     );
   }
 }

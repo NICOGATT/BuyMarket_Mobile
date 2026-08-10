@@ -179,6 +179,67 @@ void main() {
       expect(find.text('Sin categoría'), findsNothing);
     });
 
+    testWidgets('opens global search results on a separate screen', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        products: [
+          _product(id: '1', title: 'Notebook'),
+          _product(
+            id: '2',
+            title: 'Pelota profesional',
+            category: 'Deportes',
+            categoryId: 'sports',
+          ),
+        ],
+      );
+
+      expect(find.text('Pelota profesional'), findsNothing);
+      final searchField = tester.widget<TextField>(find.byType(TextField));
+      expect(searchField.decoration?.hintText, 'Buscar productos');
+
+      await tester.enterText(find.byType(TextField), 'pelota');
+      await tester.pump();
+
+      expect(find.text('Notebook'), findsOneWidget);
+      expect(find.text('Pelota profesional'), findsNothing);
+
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notebook'), findsNothing);
+      expect(find.text('Pelota profesional'), findsOneWidget);
+      expect(find.text('Resultados para “pelota”'), findsOneWidget);
+    });
+
+    testWidgets('also shows the seller owned products in the category', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CategoryProductsScreen(
+            categoryId: 'accessories',
+            categoryName: 'Accesorios',
+            productLoader: (_) async => const [],
+            ownedProductLoader: () async => [
+              _product(
+                id: 'pending-accessory',
+                title: 'Producto prueba',
+                category: 'Accesorios',
+                categoryId: 'accessories',
+                approvalStatus: 'pending',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Producto prueba'), findsOneWidget);
+      expect(find.text('Pendiente de aprobación'), findsOneWidget);
+    });
+
     testWidgets('shows the empty state when no product matches the category', (
       tester,
     ) async {
@@ -251,6 +312,7 @@ Product _product({
   String category = 'Tecnología',
   String? categoryId = 'technology',
   bool isFeatured = false,
+  String approvalStatus = '',
 }) {
   return Product(
     id: id,
@@ -264,5 +326,6 @@ Product _product({
     attributes: const [],
     stock: 2,
     isFeatured: isFeatured,
+    approvalStatus: approvalStatus,
   );
 }

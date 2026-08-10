@@ -22,7 +22,7 @@ class _CategorySelectionScreenState extends State<CategorySelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF6F7FB),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Seleccionar categoria',

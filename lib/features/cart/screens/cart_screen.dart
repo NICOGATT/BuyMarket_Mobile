@@ -1,15 +1,8 @@
-import 'package:buymarket_frontend/core/config/api.config.dart';
 import 'package:buymarket_frontend/core/routes/app_routes.dart';
 import 'package:buymarket_frontend/features/auth/services/auth_services_instance.dart';
-import 'package:buymarket_frontend/features/home/models/product.dart';
 import 'package:buymarket_frontend/features/cart/services/cart_services_instances.dart';
-import 'package:buymarket_frontend/features/home/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 
-
-import '../services/cart_services.dart';
-import '../../auth/services/auth_services.dart';
-import '../../auth/screens/auth_welcome_screen.dart';
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -18,16 +11,16 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  @override 
+  @override
   void initState() {
-    super.initState(); 
+    super.initState();
     cartService.loadCart();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF6F7FB),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Carrito',
@@ -43,7 +36,7 @@ class _CartScreenState extends State<CartScreen> {
         animation: cartService,
         builder: (context, child) {
           final items = cartService.items;
-          
+
           return items.isEmpty
               ? const Center(
                   child: Text(
@@ -65,14 +58,14 @@ class _CartScreenState extends State<CartScreen> {
 
                           String? imageUrl;
 
-                          if(media != null && media.isNotEmpty){
-                            final firstMedia = media.first; 
+                          if (media != null && media.isNotEmpty) {
+                            final firstMedia = media.first;
 
-                            if(firstMedia is Map) {
+                            if (firstMedia is Map) {
                               imageUrl = firstMedia['url']?.toString();
                             }
                           }
-                          
+
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(12),
@@ -117,18 +110,17 @@ class _CartScreenState extends State<CartScreen> {
                                       ),
 
                                       const SizedBox(height: 8),
-                                      if (item.variantSize?.isNotEmpty == true ||
+                                      if (item.variantSize?.isNotEmpty ==
+                                              true ||
                                           item.variantColor?.isNotEmpty ==
                                               true) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           [
-                                            if (item.variantSize
-                                                    ?.isNotEmpty ==
+                                            if (item.variantSize?.isNotEmpty ==
                                                 true)
                                               'Talle: ${item.variantSize}',
-                                            if (item.variantColor
-                                                    ?.isNotEmpty ==
+                                            if (item.variantColor?.isNotEmpty ==
                                                 true)
                                               'Color: ${item.variantColor}',
                                           ].join(' - '),
@@ -157,7 +149,7 @@ class _CartScreenState extends State<CartScreen> {
                                       onPressed: () {
                                         cartService.increaseQuantity(
                                           item.id,
-                                          item.quantity
+                                          item.quantity,
                                         );
                                       },
                                       icon: const Icon(
@@ -177,8 +169,8 @@ class _CartScreenState extends State<CartScreen> {
                                     IconButton(
                                       onPressed: () {
                                         cartService.decreaseQuantity(
-                                          item.id, 
-                                          item.quantity
+                                          item.id,
+                                          item.quantity,
                                         );
                                       },
                                       icon: const Icon(
@@ -253,8 +245,8 @@ class _CartScreenState extends State<CartScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        if(!authServices.isLoggeIn){
-                          Navigator.pushNamed(context, AppRoutes.authWelcome); 
+                        if (!authServices.isLoggeIn) {
+                          Navigator.pushNamed(context, AppRoutes.authWelcome);
                           return;
                         }
 

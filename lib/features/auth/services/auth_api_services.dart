@@ -94,6 +94,95 @@ class AuthApiServices {
     return null;
   }
 
+  Future<AuthUser> updateUser({
+    required String token,
+    required String userId,
+    required String firstName,
+    required String lastName,
+    required String email,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId');
+    final response = await _client
+        .patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'firstName': firstName,
+            'lastName': lastName,
+            'email': email,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _readErrorMessage(response, 'No se pudieron guardar los datos'),
+      );
+    }
+
+    return AuthUser.fromJson(_readUserMap(jsonDecode(response.body)));
+  }
+
+  Future<String> sendEmailVerificationCode({required String token}) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/send-verification-code');
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        _readErrorMessage(response, 'No se pudo enviar el código'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    return data is Map && data['message'] != null
+        ? data['message'].toString()
+        : 'Te enviamos un código de verificación a tu email.';
+  }
+
+  Future<EmailVerificationResult> verifyEmail({
+    required String token,
+    required String code,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/verify-email');
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({'code': code}),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        _readErrorMessage(response, 'No se pudo verificar el email'),
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    final map = data is Map
+        ? Map<String, dynamic>.from(data)
+        : const <String, dynamic>{};
+    return EmailVerificationResult(
+      message: map['message']?.toString() ?? 'Email verificado correctamente.',
+      token: (map['access_token'] ?? map['accessToken'] ?? map['token'])
+          ?.toString(),
+    );
+  }
+
   Future<AuthResponse> register({
     required String email,
     required String firstName,
@@ -218,6 +307,13 @@ class AuthApiServices {
       return {};
     }
   }
+}
+
+class EmailVerificationResult {
+  final String message;
+  final String? token;
+
+  const EmailVerificationResult({required this.message, this.token});
 }
 
 class AuthApiException implements Exception {

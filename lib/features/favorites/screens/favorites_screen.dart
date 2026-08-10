@@ -28,7 +28,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>{
       animation: favoritesService, 
       builder: (context, child) {
         return Scaffold(
-          backgroundColor: const Color(0xffFBF5FF),
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             title: const Text(
               'Mis favoritos', 

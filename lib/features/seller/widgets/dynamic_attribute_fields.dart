@@ -39,22 +39,20 @@ class DynamicAttributeFields extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: DropdownButtonFormField<String>(
-            value: values[attribute.id]?.toString().isNotEmpty == true
+            initialValue: values[attribute.id]?.toString().isNotEmpty == true
                 ? values[attribute.id].toString()
                 : null,
             decoration: _decoration(attribute.name),
             items: attribute.options
                 .map(
-                  (option) => DropdownMenuItem(
-                    value: option,
-                    child: Text(option),
-                  ),
+                  (option) =>
+                      DropdownMenuItem(value: option, child: Text(option)),
                 )
                 .toList(),
             validator: (value) =>
                 attribute.isRequired && (value == null || value.isEmpty)
-                    ? 'Campo requerido'
-                    : null,
+                ? 'Campo requerido'
+                : null,
             onChanged: (value) => onChanged(attribute, value),
           ),
         );
@@ -88,14 +86,10 @@ class DynamicAttributeFields extends StatelessWidget {
       labelText: label,
       filled: true,
       fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(
-          color: Colors.grey.withValues(alpha: 0.3),
-        ),
+        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
       ),
     );
   }
@@ -141,9 +135,9 @@ class _TextAttributeFieldState extends State<_TextAttributeField> {
         decoration: DynamicAttributeFields._decoration(widget.attribute.name),
         validator: (value) =>
             widget.attribute.isRequired &&
-                    (value == null || value.trim().isEmpty)
-                ? 'Campo requerido'
-                : null,
+                (value == null || value.trim().isEmpty)
+            ? 'Campo requerido'
+            : null,
         onChanged: widget.onChanged,
       ),
     );
@@ -190,11 +184,12 @@ class _NumberAttributeFieldState extends State<_NumberAttributeField> {
         keyboardType: TextInputType.number,
         decoration: DynamicAttributeFields._decoration(widget.attribute.name),
         validator: (value) {
-          if (widget.attribute.isRequired &&
-              (value == null || value.isEmpty)) {
+          if (widget.attribute.isRequired && (value == null || value.isEmpty)) {
             return 'Campo requerido';
           }
-          if (value != null && value.isNotEmpty && num.tryParse(value) == null) {
+          if (value != null &&
+              value.isNotEmpty &&
+              num.tryParse(value) == null) {
             return 'Ingresa un numero valido';
           }
           return null;

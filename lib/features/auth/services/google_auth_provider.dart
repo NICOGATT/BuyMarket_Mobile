@@ -62,7 +62,6 @@ class GoogleSignInAuthProvider implements GoogleAuthProvider {
   Future<String> getIdToken() async {
     try {
       await _ensureInitialized();
-
       if (!_googleSignIn.supportsAuthenticate()) {
         throw const GoogleAuthFailure(GoogleAuthFailureType.unavailable);
       }

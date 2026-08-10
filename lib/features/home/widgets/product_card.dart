@@ -5,6 +5,7 @@ import '../models/product.dart';
 import '../../cart/services/cart_services_instances.dart';
 import '../../favorites/services/favorite_services_instances.dart';
 import '../../../core/routes/app_routes.dart';
+import 'variant_selection_modal.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -133,17 +134,22 @@ class ProductCard extends StatelessWidget {
                     width: double.infinity,
 
                     child: ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         if (hasVariants) {
-                          Navigator.pushNamed(
+                          final variant = await showVariantSelectionModal(
                             context,
-                            AppRoutes.productDetail,
-                            arguments: product,
+                            product,
                           );
-                          return;
+                          if (variant == null || !context.mounted) return;
+                          await cartService.addProduct(
+                            product.id,
+                            variantId: variant.id,
+                          );
+                        } else {
+                          await cartService.addProduct(product.id);
                         }
 
-                        cartService.addProduct(product.id);
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -153,9 +159,7 @@ class ProductCard extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.shopping_cart),
-                      label: Text(
-                        hasVariants ? 'Elegir variante' : 'Agregar al carrito',
-                      ),
+                      label: const Text('Agregar al carrito'),
                     ),
                   ),
                 ],

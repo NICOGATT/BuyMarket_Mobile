@@ -28,11 +28,13 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _brandController = TextEditingController();
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _brandController.dispose();
     super.dispose();
   }
 
@@ -49,6 +51,7 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
     final basicInfo = ProductBasicInfo(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
+      brand: _brandController.text.trim(),
     );
 
     Navigator.push(
@@ -67,7 +70,7 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFBF5FF),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Datos del producto',
@@ -113,6 +116,14 @@ class _ProductBasicInfoScreenState extends State<ProductBasicInfoScreen> {
               icon: Icons.description_outlined,
               maxLines: 3,
               validator: _requiredValidator,
+            ),
+            const SizedBox(height: 14),
+            _input(
+              controller: _brandController,
+              label: 'Marca (opcional)',
+              hintText: 'Ej: RPM',
+              icon: Icons.sell_outlined,
+              validator: (_) => null,
             ),
             const SizedBox(height: 28),
             SizedBox(

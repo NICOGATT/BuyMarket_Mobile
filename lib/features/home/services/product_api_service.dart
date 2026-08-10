@@ -51,7 +51,8 @@ class ProductApiService {
     required String description,
     String? price,
     int? stock,
-    String? subCategoryId,
+    required String subCategoryId,
+    String? brandId,
     List<Map<String, dynamic>>? attributes,
     List<Map<String, dynamic>>? variants,
     List<String>? mediaIds,
@@ -70,7 +71,10 @@ class ProductApiService {
       if (mediaIds != null && mediaIds.isNotEmpty) 'mediaIds': mediaIds,
       'seller': seller,
     };
-    if (subCategoryId != null) body['subCategoryId'] = subCategoryId;
+    body['subCategoryId'] = subCategoryId;
+    if (brandId != null && brandId.trim().isNotEmpty) {
+      body['brandId'] = brandId;
+    }
     if (parsedPrice != null) body['price'] = parsedPrice;
     if (stock != null) body['stock'] = stock;
 
@@ -102,7 +106,10 @@ class ProductApiService {
     return Product.fromJson(data as Map<String, dynamic>);
   }
 
-  String _readErrorMessage(String responseBody) {
+  String _readErrorMessage(
+    String responseBody, {
+    String fallback = 'No se pudo publicar el producto',
+  }) {
     try {
       final decoded = jsonDecode(responseBody);
       if (decoded is Map<String, dynamic>) {
@@ -118,7 +125,7 @@ class ProductApiService {
       // Keep the user-facing fallback below.
     }
 
-    return 'No se pudo publicar el producto';
+    return fallback;
   }
 
   Future<void> uploadProductImage({
@@ -174,22 +181,37 @@ class ProductApiService {
     }).toList();
   }
 
-  Future<List<Product>> getProductsByCategory(String categoryId) async {
-    final url = Uri.parse(
-      '${ApiConfig.baseUrl}/products?categoryId=$categoryId',
-    );
+  Future<void> deleteProduct({
+    required String productId,
+    required String token,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/products/$productId');
 
-    final response = await http.get(
-      url,
-      headers: const {'ngrok-skip-browser-warning': 'true'},
-    );
+    final response = await http
+        .delete(
+          url,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+          },
+        )
+        .timeout(const Duration(seconds: 8));
 
-    if (response.statusCode != 200) {
-      throw Exception('No se pudieron cargar los productos de la categoria');
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception(
+        _readErrorMessage(
+          response.body,
+          fallback: 'No se pudo eliminar el producto',
+        ),
+      );
     }
+  }
 
-    final List data = jsonDecode(response.body);
-
-    return data.map((json) => Product.fromJson(json)).toList();
+  Future<List<Product>> getProductsByCategory(String categoryId) async {
+    final products = await getProducts();
+    return products
+        .where((product) => product.categoryId == categoryId)
+        .toList();
   }
 }

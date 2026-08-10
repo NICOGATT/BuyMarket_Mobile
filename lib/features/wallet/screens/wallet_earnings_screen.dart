@@ -72,7 +72,7 @@ class _WalletPeriodEarningsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Ganancias',

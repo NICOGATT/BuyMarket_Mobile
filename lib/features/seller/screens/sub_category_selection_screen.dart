@@ -71,7 +71,7 @@ class _SubCategorySelectionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffF6F7FB),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Seleccionar subcategoria',
@@ -162,11 +162,6 @@ class _SubCategorySelectionScreenState
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.category_outlined,
-                    color: Color(0xff168BEE),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       subCategory.name.isEmpty ? 'Sin nombre' : subCategory.name,

@@ -27,9 +27,18 @@ class SubCategoryService {
             ? decoded['data'] as List
             : <dynamic>[];
 
-    return data
+    final subCategories = data
         .map((json) => SubCategory.fromJson(json as Map<String, dynamic>))
         .where((subCategory) => subCategory.id.isNotEmpty)
         .toList();
+
+    subCategories.sort((first, second) {
+      final firstIsOther = first.name.trim().toLowerCase() == 'otros';
+      final secondIsOther = second.name.trim().toLowerCase() == 'otros';
+      if (firstIsOther != secondIsOther) return firstIsOther ? 1 : -1;
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+
+    return subCategories;
   }
 }

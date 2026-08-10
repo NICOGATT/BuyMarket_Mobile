@@ -1,65 +1,80 @@
 import 'package:flutter/material.dart';
 import '../../../core/routes/app_routes.dart';
 
-class AuthWelcomeScreen extends StatelessWidget{
-  const AuthWelcomeScreen ({super.key}); 
+class AuthWelcomeScreen extends StatelessWidget {
+  const AuthWelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAF5FC),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const Spacer(), 
+              const Spacer(),
 
               Image.asset(
-                'assets/images/BuyMarketLogo2.png', 
-                height: 160,
-              ), 
-              const SizedBox(height: 50,),
+                'assets/images/BuyMarketLogo2.png',
+                height: 215,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 34),
               SizedBox(
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushNamed(
-                      context, 
-                      AppRoutes.login
-                    );
-                  }, 
+                    Navigator.pushNamed(context, AppRoutes.login);
+                  },
                   child: const Text(
-                    'Iniciar sesion', 
+                    'Iniciar sesion',
                     style: TextStyle(fontSize: 20),
-                  )
+                  ),
                 ),
-              ), 
+              ),
 
-              const SizedBox(height: 24,), 
+              const SizedBox(height: 24),
 
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black87, 
+                    backgroundColor: Colors.black87,
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: (){
+                  onPressed: () {
                     Navigator.pushNamed(context, AppRoutes.register);
-                  }, 
+                  },
                   child: const Text(
-                    'Registrarse', 
+                    'Registrarse',
                     style: TextStyle(fontSize: 20),
-                  )
+                  ),
                 ),
-              ), 
-              const Spacer(), 
-              const Align(
-                alignment: Alignment.bottomRight,
-                child: Icon(Icons.headphones, color: Colors.grey, size: 32,),
-              )
+              ),
+
+              const SizedBox(height: 16),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRoutes.home,
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  'Continuar como visitante',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline,
+                    decorationThickness: 1.5,
+                  ),
+                ),
+              ),
+              const Spacer(),
             ],
           ),
         ),

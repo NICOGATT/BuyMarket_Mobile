@@ -9,10 +9,12 @@ import '../models/selected_media.dart';
 import '../models/sub_category.dart';
 import '../models/sub_category_attribute.dart';
 import '../services/product_media_service.dart';
+import '../services/brand_service.dart';
 import '../services/sub_category_attribute_service.dart';
 import '../widgets/dynamic_attribute_fields.dart';
 import '../widgets/selected_media_list.dart';
 import 'media_preview_screen.dart';
+import 'seller_auth_required_screen.dart';
 
 class AddProductScreen extends StatefulWidget {
   final CategoryModel selectedCategory;
@@ -36,6 +38,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _attributeService = SubCategoryAttributeService();
   final _productMediaService = ProductMediaService();
+  final _brandService = BrandService();
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
 
@@ -132,11 +135,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final user = authServices.user;
 
     if (token == null || user == null) {
-      _showSnackBar('Usuario no autenticado');
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const SellerAuthRequiredScreen()),
+      );
       return;
     }
 
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedSubCategory.id.trim().isEmpty) {
+      _showSnackBar('Seleccioná una subcategoría para publicar');
+      return;
+    }
 
     if (_variants.isNotEmpty && !_variants.any((variant) => variant.isActive)) {
       _showSnackBar('El producto debe tener al menos una variante activa');
@@ -151,6 +162,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     setState(() => _isPublishing = true);
 
     try {
+      final brandId = await _brandService.resolveBrandId(
+        widget.basicInfo.brand,
+        token,
+      );
       final mediaIds = <String>[];
       for (var index = 0; index < selectedMedia.length; index++) {
         final media = selectedMedia[index];
@@ -170,6 +185,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ? int.parse(_stockController.text.trim())
             : null,
         subCategoryId: _selectedSubCategory.id,
+        brandId: brandId,
         attributes: _buildAttributesPayload(),
         variants: _buildVariantsPayload(),
         mediaIds: mediaIds,
@@ -180,7 +196,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       await productService.loadProducts();
 
       if (!mounted) return;
-      _showSnackBar('Producto publicado correctamente');
+      _showSnackBar('Producto publicado correctamente.');
       Navigator.pushNamed(context, AppRoutes.home);
     } catch (e) {
       if (!mounted) return;
@@ -262,7 +278,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   List<SubCategoryAttribute> get _productAttributes {
     return _dynamicAttributes.where((attribute) {
-      return attribute.isProductAttribute;
+      final normalizedName = attribute.name.trim().toLowerCase();
+      final isBrandAttribute =
+          normalizedName == 'marca' || normalizedName == 'brand';
+      return attribute.isProductAttribute && !isBrandAttribute;
     }).toList();
   }
 
@@ -293,7 +312,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFBF5FF),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Publicar producto',
@@ -391,6 +410,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
           ),
           const SizedBox(height: 8),
           Text(widget.basicInfo.description),
+          if (widget.basicInfo.brand.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Marca: ${widget.basicInfo.brand}'),
+          ],
         ],
       ),
     );

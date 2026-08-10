@@ -14,15 +14,22 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ActionChip(
-      label: Text(title),
-      onPressed: onTap,
-      backgroundColor: isSelected
-          ? const Color(0xff5E2CA5)
-          : Colors.white,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black,
-        fontWeight: FontWeight.bold,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 180),
+            style: TextStyle(
+              color: isSelected ? const Color(0xff7FE3FF) : Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+            child: Text(title.toUpperCase()),
+          ),
+        ),
       ),
     );
   }

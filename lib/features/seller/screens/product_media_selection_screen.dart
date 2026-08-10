@@ -80,7 +80,7 @@ class _ProductMediaSelectionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFBF5FF),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
           'Agregar imagenes y videos',

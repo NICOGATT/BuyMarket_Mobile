@@ -29,7 +29,7 @@ class _WalletBillingSalesScreenState extends State<WalletBillingSalesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: _appBar('Facturación'),
       body: SafeArea(
         child: FutureBuilder<List<WalletSale>>(
@@ -82,7 +82,7 @@ class WalletSaleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xffFAFAFC),
+      backgroundColor: Colors.transparent,
       appBar: _appBar('Detalle de venta'),
       body: SafeArea(
         child: ListView(
